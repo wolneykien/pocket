@@ -27,32 +27,33 @@ show_help() {
 Usage: $PROG [options] POCKETNAME [DIR]
 
 $PROG initializes the current directory (or the directory DIR if specified)
-as a pocket POCKETNAME writing the corresponding Pocketfile.
+as a pocket POCKETNAME writing the corresponding $POCKETFILE. Updates the
+$POCKETFILE if it already exists.
 EOF
 
 cat <<EOF
 
-  --new  Create a new pocket;
-
   -c CONFFILE, --config=CONFFILE  use configuration file CONFFILE;
-  -P URL, --pocketurl=URL       pockets URL on a pocket-server.
+  -f TYPE, --flavour=TYPE  explicitly select the pocket flavour TYPE;
+
+  -F, --list-flavours  list the available pocket flavours and exit.
 
 EOF
     exit 0
 }
 
-OPTS=`getopt -n $PROG -o q,v,V,h,c:,P: -l quiet,verbose,version,help,new,config:,pocketurl: -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
+OPTS=`getopt -n $PROG -o q,v,V,h,c:,f:,F -l quiet,verbose,version,help,config:,flavour:,list-flavours -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
 eval set -- "$OPTS"
 
-quiet=; verbose=; config=; pocketurl=; newpocket=
+quiet=; verbose=; config=
 while :; do
     case "$1" in
     -q|--quiet) quiet=-q;;
     -v|--verbose) verbose=-v;;
-    -V|--version) print_version;;
-    --new) newpocket=--new;;
+    -V|--version) print_version; exit 0;;
     -c|--config) shift; config="$1";;
-    -P|--pocketurl) shift; pocketurl="$1";;
+    -f|--flavour) shift; config="$1";;
+    -F|list-flavours) do_print_flavours;;
     --) shift; break;;
     *)
         fatal 'Unrecognized option: %s\n' "$1"
@@ -70,10 +71,41 @@ POCKETNAME="$1"; shift
 
 if [ $# -gt 0 ]; then
     DIR="$1"; shift
+else
+    DIR='.'
 fi
 
-load_config ${config:+"$config"}
+
+## Functions
+
+# Lists the available flavours and exit
+do_print_flavours()
+{
+    load_config ${config:+"$config"}
+    print_flavours
+    exit 0
+}
 
 
 ## Main
+
+config="$(load_config ${config:+"$config"})"
+
+workdir="$(make_workdir)"
+trap "cleanup_workdir" EXIT
+
+[ -n "$flavour" ] || flavour="$(guess_flavour)"
+if [ -z "$flavour" ]; then 
+    write_error 'Unable to guess the flavour. '
+    fatal 'Try to select one explicitly\n'
+fi
+
+pocketfile="${DIR%/}/$POCKETFILE";
+
+# Lookup the template
+template="$(find_config "$flavour.pocket")"
+[ -n "$template" ] || fatal 'Template for the flavour "%s" not found\n' \
+                            "$flavour"
+
+cat "$template" >"${workdir%/}/$POCKETFILE"
 
