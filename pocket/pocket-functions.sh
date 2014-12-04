@@ -63,17 +63,82 @@ fatal() {
 }
 
 
-load_config()
+default_config()
 {
-    local config="${1:-}"
+    local config="${CONFDIR%/}/$DEFCONFNAME"
+    [ -f "$config" ] || config="${0%/*}/$DEFCONFNAME"
+    echo "$config"
+}
 
-    if [ -z "$config" ]; then
-        config="${CONFDIR%/}/$DEFCONFNAME"
-        [ -f "$config" ] || config="${0%/*}/$DEFCONFNAME"
-    fi
+assert_config()
+{
+    local config="$1"
 
+    [ -n "$config" ] || fatal 'Configuration file is not specified\n'
     [ -f "$config" ] || fatal 'Configuration file not found: %s\n' \
                               "$config"
+}
 
-    . "$config"
+filter_config()
+{
+    sed -n \
+        -e '/^#/ { p; d }' \
+        -e 's/"/\\"/g' \
+        -e '/^[^=]\+[[:space:]]*=.*/ s/^\([^=]\+\)[[:space:]]*=[[:space:]]*\(.*\)[[:space:]]*$/\1="\2/' \
+        -e '/^[^=]\+[[:space:]]*=.*\\[[:space:]]*$/ { s/[[:space:]]*\\[[:space:]]*$//; h; d }' \
+        -e '/^[^=]\+[[:space:]]*=.*/ { s/^[^=]\+=".*$/&";/; p; d }' \
+        -e '/\\[[:space:]]*$/ { s/[[:space:]]*\\[[:space:]]*$//; s/^[[:space:]]*//; H; d }' \
+        -e '{ s/^[[:space:]]*//; H; x; s/\n/ /g; s/^[^=]\+=".*$/&";/p; s/^.*$//; x }' \
+        -e '/^[[:space:]]*$/ p'      
+}
+
+load_config()
+{
+    local config="${1:-$(default_config)}"
+
+    assert_config "$config"
+
+    eval "$(filter_config <"$config")"
+}
+
+quote_sed()
+{
+    sed -e 's/\\/\\\\/g' \
+        -e 's,/,\\/,g' \
+        -e 's/"/\\"/g'
+}
+
+set_config_val()
+{
+    local config="$1"
+    local name="$2"
+    local val="$3"
+
+    assert_config "$config"
+
+    [ -n "$name" ] || fatal 'Variable name is empty\n'
+
+    [ -z "$val" ] || val="$( echo "$val" | quote_sed )"
+
+    sed -i \
+        -e "s/^$name[[:space:]]*=.*\$/$name = $val/" \
+        -e 't out' \
+        -e 'p' \
+        -e "\$ s/^.*\$/$name = $val/p" \
+        -e 'd' \
+        -e ': out' \
+        -e '    n; b out' \
+      "$config"
+}
+
+del_config_val()
+{
+    local config="$1"
+    local name="$2"
+
+    assert_config "$config"
+
+    [ -n "$name" ] || fatal 'Variable name is empty\n'
+
+    sed -i -e "/^$name[[:space:]]*=/ d" "$config"
 }
