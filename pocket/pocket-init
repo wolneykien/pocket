@@ -1,0 +1,79 @@
+#!/bin/sh -efu
+#
+# Copyright (C) 2014  Paul Wolneykien <manowar@altlinux.org>
+# Copyright (C) 2014  STC Metrotek [http://metrotek.spb.ru/]
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+PROG="${PROG:-${0##*/}}"
+PROG_PATH="${0%/*}"
+
+. "$PROG_PATH/pocket-functions.sh"
+
+show_help() {
+    cat <<EOF
+Usage: $PROG [options] POCKETNAME [DIR]
+
+$PROG initializes the current directory (or the directory DIR if specified)
+as a pocket POCKETNAME writing the corresponding Pocketfile.
+EOF
+
+cat <<EOF
+
+  --new  Create a new pocket;
+
+  -c CONFFILE, --config=CONFFILE  use configuration file CONFFILE;
+  -P URL, --pocketurl=URL       pockets URL on a pocket-server.
+
+EOF
+    exit 0
+}
+
+OPTS=`getopt -n $PROG -o q,v,V,h,c:,P: -l quiet,verbose,version,help,new,config:,pocketurl: -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
+eval set -- "$OPTS"
+
+quiet=; verbose=; config=; pocketurl=; newpocket=
+while :; do
+    case "$1" in
+    -q|--quiet) quiet=-q;;
+    -v|--verbose) verbose=-v;;
+    -V|--version) print_version;;
+    --new) newpocket=--new;;
+    -c|--config) shift; config="$1";;
+    -P|--pocketurl) shift; pocketurl="$1";;
+    --) shift; break;;
+    *)
+        fatal 'Unrecognized option: %s\n' "$1"
+        ;;
+    esac
+    shift
+done
+
+if [ $# -lt 1 ]; then
+    show_usage
+    exit 1
+fi
+
+POCKETNAME="$1"; shift
+
+if [ $# -gt 0 ]; then
+    DIR="$1"; shift
+fi
+
+load_config ${config:+"$config"}
+
+
+## Main
+
