@@ -21,7 +21,10 @@ POCKET_VERSION="0.1.0"
 PROG_VERSION="$POCKET_VERSION"
 
 CONFDIR="/etc/pocket"
+USERCONFDIR="$HOME/.pocket"
 DEFCONFNAME="pocket.conf"
+
+POCKETFILE=Pocketfile
 
 print_common_opts()
 {
@@ -46,7 +49,6 @@ print_version()
     cat <<EOF
 $PROG version $PROG_VERSION
 EOF
-    exit 0
 }
 
 write_error() {
@@ -63,11 +65,35 @@ fatal() {
 }
 
 
-default_config()
+find_config()
 {
-    local config="${CONFDIR%/}/$DEFCONFNAME"
-    [ -f "$config" ] || config="${0%/*}/$DEFCONFNAME"
-    echo "$config"
+    local name="${1:-$DEFCONFNAME}"
+    local config=
+
+    if [ -f "$name" ]; then
+        echo "$name"
+        return 0
+    fi
+
+    config="${USERCONFDIR%/}/$name"
+    if [ -f "$config" ]; then
+        echo "$config"
+        return 0
+    fi
+
+    config="${CONFDIR%/}/$name"
+    if [ -f "$config" ]; then
+        echo "$config"
+        return 0
+    fi
+
+    config="${0%/*}/$name"
+    if [ -f "$config" ]; then
+        echo "$config"
+        return 0
+    fi
+
+    return 1
 }
 
 assert_config()
@@ -79,26 +105,45 @@ assert_config()
                               "$config"
 }
 
-filter_config()
+quote_config()
 {
     sed -n \
-        -e '/^#/ { p; d }' \
+        -e '/^[[:space:]]*#/ { s/^[[:space:]]\+//; s/^.*$/&\\n/; p; d }' \
+        -e '/^[^=]\+[[:space:]]*=.*/ s/^\([^=]\+\)[[:space:]]*=[[:space:]]*\(.*\)[[:space:]]*$/\1 = \2/' \
+        -e '/\\[[:space:]]*\(#.*\)\?$/ { s/\\/\\\\/g; s/^.*$/&\\n/ }' \
+        -e '/^[^=]\+[[:space:]]*=.*\\n$/ { h; d }' \
+        -e '/^[^=]\+[[:space:]]*=.*/ { s/^.*$/&\\n/; p; d }' \
+        -e '/\\n$/ { H; d }' \
+        -e '{ H; x; s/\n//g; s/^[^=]\+[[:space:]]*=.*$/&\\n/p; s/^.*$//; x }' \
+        -e '/^[[:space:]]*$/ { s/^.*$/\\n/; p; d }'
+}
+
+read_config()
+{
+    sed -n \
+        -e '/^[[:space:]]*#/ d' \
+        -e '/^[[:space:]]*$/ d' \
+        -e 's/[[:space:]]*#[^\]*\\n/\\n/g' \
+        -e 's/\\\\[[:space:]]*\\n/\\n/g' \
+        -e 's/[[:space:]]*\\n[[:space:]]*/ /g' \
+        -e 's/\\\\/\\/g' \
         -e 's/"/\\"/g' \
-        -e '/^[^=]\+[[:space:]]*=.*/ s/^\([^=]\+\)[[:space:]]*=[[:space:]]*\(.*\)[[:space:]]*$/\1="\2/' \
-        -e '/^[^=]\+[[:space:]]*=.*\\[[:space:]]*$/ { s/[[:space:]]*\\[[:space:]]*$//; h; d }' \
-        -e '/^[^=]\+[[:space:]]*=.*/ { s/^[^=]\+=".*$/&";/; p; d }' \
-        -e '/\\[[:space:]]*$/ { s/[[:space:]]*\\[[:space:]]*$//; s/^[[:space:]]*//; H; d }' \
-        -e '{ s/^[[:space:]]*//; H; x; s/\n/ /g; s/^[^=]\+=".*$/&";/p; s/^.*$//; x }' \
-        -e '/^[[:space:]]*$/ p'      
+        -e 's/[[:space:]]\+$//' \
+        -e 's/^\([^=[:space:]]\+\)[[:space:]]*=[[:space:]]*\(.*\)[[:space:]]*$/\1="\2";/p'
+}
+
+expand_config() {
+    
 }
 
 load_config()
 {
-    local config="${1:-$(default_config)}"
+    local config="$(find_config "${1:-}")"
 
     assert_config "$config"
 
-    eval "$(filter_config <"$config")"
+    eval "$(read_config <"$config")"
+    echo "$config"
 }
 
 quote_sed()
@@ -141,4 +186,56 @@ del_config_val()
     [ -n "$name" ] || fatal 'Variable name is empty\n'
 
     sed -i -e "/^$name[[:space:]]*=/ d" "$config"
+}
+
+# Updates the given config file with values from the reference one
+# args: config-file-dest config-file-ref
+update_config()
+{
+    local dest="$1"
+    local ref="$2"
+
+    if [ ! -f "$dest" ]; then
+        cat "$ref" >"$dest"
+        return 0
+    fi
+
+    local name=
+    local val=
+    while read ln; do
+        name="$(echo "$ln" | sed -e '/^[^=]\+=/ { s/^\([^=]\+\)=.*$/\1/; p; q }')"
+        set_config_val "$dest" "$name"
+}
+
+
+avail_flavours()
+{
+    printf '\t%s\t%s/%s\n' 'debian' 'apt' 'deb'
+# TODO: altlinux apt rpm
+}
+
+# Outputs the report on available flavours
+print_flavours()
+{
+    printf 'Available pocket flavours:\n\n'
+    avail_flavours
+}
+
+guess_flavour()
+{
+    echo 'debian'
+# TODO: make a real guess :-)
+}
+
+
+make_workdir()
+{
+    mktemp -d "pocket.XXXXXXXXXX"
+}
+
+cleanup_workdir()
+{
+    local workdir="${1:-$workdir}"
+
+    rm -rf "${workdir%/}"
 }
