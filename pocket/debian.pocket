@@ -1,1 +1,6 @@
-SYSTEM=debian
+
+# Build system type:
+SYSTEM = debian
+
+# The list of the pocket components:
+COMPONENTS =

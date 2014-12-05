@@ -24,7 +24,8 @@ CONFDIR="/etc/pocket"
 USERCONFDIR="$HOME/.pocket"
 DEFCONFNAME="pocket.conf"
 
-POCKETFILE=Pocketfile
+POCKETFILE='Pocketfile'
+POCKETSUF='.pocket'
 
 print_common_opts()
 {
@@ -105,44 +106,13 @@ assert_config()
                               "$config"
 }
 
-quote_config()
-{
-    sed -n \
-        -e '/^[[:space:]]*#/ { s/^[[:space:]]\+//; s/^.*$/&\\n/; p; d }' \
-        -e '/^[^=]\+[[:space:]]*=.*/ s/^\([^=]\+\)[[:space:]]*=[[:space:]]*\(.*\)[[:space:]]*$/\1 = \2/' \
-        -e '/\\[[:space:]]*\(#.*\)\?$/ { s/\\/\\\\/g; s/^.*$/&\\n/ }' \
-        -e '/^[^=]\+[[:space:]]*=.*\\n$/ { h; d }' \
-        -e '/^[^=]\+[[:space:]]*=.*/ { s/^.*$/&\\n/; p; d }' \
-        -e '/\\n$/ { H; d }' \
-        -e '{ H; x; s/\n//g; s/^[^=]\+[[:space:]]*=.*$/&\\n/p; s/^.*$//; x }' \
-        -e '/^[[:space:]]*$/ { s/^.*$/\\n/; p; d }'
-}
-
-read_config()
-{
-    sed -n \
-        -e '/^[[:space:]]*#/ d' \
-        -e '/^[[:space:]]*$/ d' \
-        -e 's/[[:space:]]*#[^\]*\\n/\\n/g' \
-        -e 's/\\\\[[:space:]]*\\n/\\n/g' \
-        -e 's/[[:space:]]*\\n[[:space:]]*/ /g' \
-        -e 's/\\\\/\\/g' \
-        -e 's/"/\\"/g' \
-        -e 's/[[:space:]]\+$//' \
-        -e 's/^\([^=[:space:]]\+\)[[:space:]]*=[[:space:]]*\(.*\)[[:space:]]*$/\1="\2";/p'
-}
-
-expand_config() {
-    
-}
-
 load_config()
 {
     local config="$(find_config "${1:-}")"
 
     assert_config "$config"
 
-    eval "$(read_config <"$config")"
+    . "$config"
     echo "$config"
 }
 
@@ -151,6 +121,14 @@ quote_sed()
     sed -e 's/\\/\\\\/g' \
         -e 's,/,\\/,g' \
         -e 's/"/\\"/g'
+}
+
+is_pocketfile()
+{
+    local config="$1"
+
+    [ "${config##*/}" = "$POCKETFILE" -o \
+        "${config##*.}" = "$POCKETSUF" ]
 }
 
 set_config_val()
@@ -165,15 +143,27 @@ set_config_val()
 
     [ -z "$val" ] || val="$( echo "$val" | quote_sed )"
 
-    sed -i \
-        -e "s/^$name[[:space:]]*=.*\$/$name = $val/" \
-        -e 't out' \
-        -e 'p' \
-        -e "\$ s/^.*\$/$name = $val/p" \
-        -e 'd' \
-        -e ': out' \
-        -e '    n; b out' \
-      "$config"
+    if is_pocketfile "$config"; then
+        sed -i \
+            -e "s/^$name[[:space:]]*=.*\$/$name = $val/" \
+            -e 't out' \
+            -e 'p' \
+            -e "\$ s/^.*\$/$name=\"$val\"/p" \
+            -e 'd' \
+            -e ': out' \
+            -e '    n; b out' \
+          "$config"
+    else
+        sed -i \
+            -e "s/^$name[[:space:]]*=.*\$/$name= $val/" \
+            -e 't out' \
+            -e 'p' \
+            -e "\$ s/^.*\$/$name=\"$val\"/p" \
+            -e 'd' \
+            -e ': out' \
+            -e '    n; b out' \
+          "$config"
+    fi
 }
 
 del_config_val()
@@ -186,25 +176,6 @@ del_config_val()
     [ -n "$name" ] || fatal 'Variable name is empty\n'
 
     sed -i -e "/^$name[[:space:]]*=/ d" "$config"
-}
-
-# Updates the given config file with values from the reference one
-# args: config-file-dest config-file-ref
-update_config()
-{
-    local dest="$1"
-    local ref="$2"
-
-    if [ ! -f "$dest" ]; then
-        cat "$ref" >"$dest"
-        return 0
-    fi
-
-    local name=
-    local val=
-    while read ln; do
-        name="$(echo "$ln" | sed -e '/^[^=]\+=/ { s/^\([^=]\+\)=.*$/\1/; p; q }')"
-        set_config_val "$dest" "$name"
 }
 
 

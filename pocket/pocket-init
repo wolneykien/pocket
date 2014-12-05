@@ -24,36 +24,41 @@ PROG_PATH="${0%/*}"
 
 show_help() {
     cat <<EOF
-Usage: $PROG [options] POCKETNAME [DIR]
+Usage: $PROG [ options ] [ POCKETDIR ] [ PROVIDER:DIST[/COMP] ... ]
 
-$PROG initializes the current directory (or the directory DIR if specified)
-as a pocket POCKETNAME writing the corresponding $POCKETFILE. Updates the
-$POCKETFILE if it already exists.
+$PROG initializes the specified directory POCKETDIR as a pocket by
+writing down the corresponding $POCKETFILE. The default pocket
+directory is used when none is specified.
 EOF
 
 cat <<EOF
 
-  -c CONFFILE, --config=CONFFILE  use configuration file CONFFILE;
-  -f TYPE, --flavour=TYPE  explicitly select the pocket flavour TYPE;
+  -c CONFFILE, --config=CONFFILE    use configuration file CONFFILE;
+  -f TYPE, --flavour=TYPE           explicitly select the pocket
+                                    flavour TYPE;
 
-  -F, --list-flavours  list the available pocket flavours and exit.
+  -F, --avail-flavours              list the available pocket
+                                    flavours and exit;
+
+  -u, --update                      update the existing $POCKETFILE.
 
 EOF
     exit 0
 }
 
-OPTS=`getopt -n $PROG -o q,v,V,h,c:,f:,F -l quiet,verbose,version,help,config:,flavour:,list-flavours -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
+OPTS=`getopt -n $PROG -o q,v,V,h,c:,f:,F,u -l quiet,verbose,version,help,config:,flavour:,avail-flavours,update -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
 eval set -- "$OPTS"
 
-quiet=; verbose=; config=
+quiet=; verbose=; config=; flavour=; update=
 while :; do
     case "$1" in
     -q|--quiet) quiet=-q;;
     -v|--verbose) verbose=-v;;
     -V|--version) print_version; exit 0;;
     -c|--config) shift; config="$1";;
-    -f|--flavour) shift; config="$1";;
-    -F|list-flavours) do_print_flavours;;
+    -f|--flavour) shift; flavour="$1";;
+    -F|avail-flavours) do_print_flavours;;
+    -u|--update) update=-u;;
     --) shift; break;;
     *)
         fatal 'Unrecognized option: %s\n' "$1"
@@ -61,19 +66,6 @@ while :; do
     esac
     shift
 done
-
-if [ $# -lt 1 ]; then
-    show_usage
-    exit 1
-fi
-
-POCKETNAME="$1"; shift
-
-if [ $# -gt 0 ]; then
-    DIR="$1"; shift
-else
-    DIR='.'
-fi
 
 
 ## Functions
@@ -91,21 +83,40 @@ do_print_flavours()
 
 config="$(load_config ${config:+"$config"})"
 
-workdir="$(make_workdir)"
-trap "cleanup_workdir" EXIT
-
-[ -n "$flavour" ] || flavour="$(guess_flavour)"
-if [ -z "$flavour" ]; then 
-    write_error 'Unable to guess the flavour. '
-    fatal 'Try to select one explicitly\n'
+if [ $# -gt 0 ]; then
+    # Set the POCKETDIR iff $1 doesn't look like a provider:component
+    if [ "${1%%:*}" = "$1" ]; then
+        POCKETDIR="$1"; shift
+    fi
 fi
 
-pocketfile="${DIR%/}/$POCKETFILE";
+[ -n "$POCKETDIR" ] || fatal "The pocket directory isn't specified\\n"
 
-# Lookup the template
-template="$(find_config "$flavour.pocket")"
-[ -n "$template" ] || fatal 'Template for the flavour "%s" not found\n' \
-                            "$flavour"
+POCKETDIR="${POCKETDIR%/}"
+POCKETNAME="${POCKETDIR##*/}"
 
-cat "$template" >"${workdir%/}/$POCKETFILE"
+pocketfile="$POCKETDIR/$POCKETFILE";
 
+if [ ! -f "$pocketfile" ]; then
+    [ -n "$flavour" ] || flavour="$(guess_flavour)"
+    if [ -z "$flavour" ]; then 
+        write_error 'Unable to guess the flavour. '
+        fatal 'Try to select one explicitly\n'
+    fi
+
+    # Lookup the template
+    template="$(find_config "$flavour.pocket")"
+    [ -n "$template" ] || \
+        fatal 'Template of the flavour "%s" not found\n' \
+              "$flavour"
+
+    [ -d "${DIR%/}" ] || mkdir -p "${DIR%/}"
+    cat "$template" >"$pocketfile"
+else
+    [ -n "$update" ] || \
+        fatal '%s already exists\n' "$pocketfile"
+    [ -z "$flavour" ] || \
+        write_error "Warning: the flavour isn't updated\\n"
+fi
+
+set_config_val "$pocketfile" COMPONENTS "$*"
