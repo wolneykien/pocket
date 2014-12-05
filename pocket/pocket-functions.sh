@@ -113,7 +113,7 @@ load_config()
     assert_config "$config"
 
     . "$config"
-    echo "$config"
+    CONFIG="$config"
 }
 
 quote_sed()
