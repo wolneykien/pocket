@@ -1,6 +1,156 @@
+#
+# Copyright (C) 2014  Paul Wolneykien <manowar@altlinux.org>
+# Copyright (C) 2014  STC Metrotek [http://metrotek.spb.ru/]
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 
-# Build system type:
-SYSTEM = debian
+# Pocket flavour:
+FLAVOUR = debian
 
 # The list of the pocket components:
 COMPONENTS =
+
+
+BUILDROOT = buildroot
+
+
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
+
+HSHPRIVDIR = /usr/libexec/hasher-priv
+MAKEDEV = $(HSHPRIVDIR)/makedev.sh
+USER_A = $(addsuffix _a, $(USER))
+USER_B = $(addsuffix _b, $(USER))
+RUN_A = $(HSHPRIVDIR)/chrootuid1.sh
+RUN_B = $(HSHPRIVDIR)/chrootuid2.sh
+
+
+FAKEROOT = /usr/bin/fakeroot-sysv
+SHELL = /bin/bash
+
+
+REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
+DISTRO = $(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%, $(COMPONENTS))))))
+DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%, $(COMPONENTS)))
+
+# TODO: Find the mirror by $(REPO)
+MIRROR = http://ftp.us.debian.org/debian
+
+DEBOOTSTRAP = /usr/sbin/debootstrap
+VARIANT = minbase
+BBOXPKG = busybox-static
+PKGLIST = fakeroot $(BBOXPKG)
+DPKGX = dpkg -x
+
+DEBPATHS = $(BUILDROOT)/.host/debootstrap/debpaths
+
+BUILDROOTTAR = $(REPO)-$(DISTRO).tar.gz
+BUILDROOTTARDIRS = debootstrap var/cache/apt/archives var/lib/apt/lists
+
+BUSYBOX = /.host/bin/busybox
+APTARCHIVES = /var/cache/apt/archives
+
+
+bootstrap: $(BUILDROOT)/.configured
+
+$(BUILDROOT)/.configured: $(BUILDROOT)/.installed
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'touch /etc/passwd' >>$(BUILDROOT)/.host/entry
+	@echo 'touch /etc/group' >>$(BUILDROOT)/.host/entry
+	@echo 'touch /etc/shadow' >>$(BUILDROOT)/.host/entry
+	@echo 'update-passwd' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	touch $@
+
+$(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
+	                 $(BUILDROOT)$(BUSYBOX)
+	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
+	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
+	@sed -e 's/^[^[:space:]]\+[[:space:]]\+//' \
+	     -e 's,^.*$$,$(BUSYBOX) dpkg-deb -x /.host& /,' \
+	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	touch $@
+
+$(BUILDROOT)/.installed: $(BUILDROOT)/.extracted
+	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo 'rm -f /var/lib/dpkg/status' >>$(BUILDROOT)/.host/entry
+	@echo 'touch /var/lib/dpkg/status' >>$(BUILDROOT)/.host/entry
+	@echo 'touch /var/lib/dpkg/available' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir -p /var/lib/dpkg/info' >>$(BUILDROOT)/.host/entry
+	@echo 'install() {' >>$(BUILDROOT)/.host/entry
+	@echo "  dpkg-deb -f \"\$$1\"" >>$(BUILDROOT)/.host/entry
+	@echo "  echo 'Status: install ok installed'" \
+	  >>$(BUILDROOT)/.host/entry
+	@echo "  echo" >>$(BUILDROOT)/.host/entry
+	@echo '  touch /var/lib/dpkg/info/$$pkg.list' \
+	  >>$(BUILDROOT)/.host/entry
+	@echo '  echo "Update $$1 status" >&2' \
+	  >>$(BUILDROOT)/.host/entry
+	@echo '}' >>$(BUILDROOT)/.host/entry
+	@sed -e 's/^[^[:space:]]\+[[:space:]]\+//' \
+	     -e 's,^.*$$,install /.host& >>/var/lib/dpkg/status,' \
+	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	touch $@
+
+$(BUILDROOT)$(BUSYBOX):
+	@ \
+	bb="$$(sed -n -e 's/^$(BBOXPKG)[[:space:]]\+//p' $(DEBPATHS))"; \
+	if [ -n "$$bb" ]; then \
+		echo $(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host >&2; \
+		$(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host; \
+	else \
+		echo "Error: package '$(BBOXPKG)' not found" >&2; \
+		exit 1; \
+	fi
+
+download: $(BUILDROOTTAR)
+extract: $(DEBPATHS)
+
+$(DEBPATHS): $(BUILDROOTTAR) $(BUILDROOT)/.stamp
+	tar xpf $(BUILDROOTTAR) -C $(BUILDROOT)/.host
+	touch $@
+
+$(BUILDROOTTAR):
+	rm -rf $(BUILDROOT)/.host
+	mkdir -p $(BUILDROOT)
+	$(DEBOOTSTRAP) --download-only \
+		       --variant=$(VARIANT) \
+	    $(if $(PKGLIST),--include=$(subst $(space),$(comma),$(PKGLIST))) \
+	    $(if $(DISTCOMPS),--components=$(subst $(space),$(comma),$(DISTCOMPS))) \
+		$(DISTRO) $(BUILDROOT)/.host $(MIRROR)
+	tar cpf $@ -C $(BUILDROOT)/.host $(BUILDROOTTARDIRS)
+
+$(BUILDROOT)/.stamp:
+	mkdir -p $(BUILDROOT)
+	chgrp $(USER_A) $(BUILDROOT)
+	chmod 1775 $(BUILDROOT)
+	mkdir -p $(BUILDROOT)/.host
+	touch $@
+
+$(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
+	mkdir -p $(BUILDROOT)/dev
+	chgrp $(USER_A) $(BUILDROOT)/dev
+	mkdir $(BUILDROOT)/dev/pts
+	chgrp $(USER_A) $(BUILDROOT)/dev/pts
+	$(MAKEDEV) $(realpath $(BUILDROOT))
+	touch $@
+
+.PHONY: bootstrap download extract
