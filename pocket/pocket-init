@@ -111,7 +111,7 @@ if [ ! -f "$pocketfile" ]; then
         fatal 'Template of the flavour "%s" not found\n' \
               "$flavour"
 
-    [ -d "${DIR%/}" ] || mkdir -p "${DIR%/}"
+    [ -d "$POCKETDIR" ] || mkdir -p "$POCKETDIR"
     cat "$template" >"$pocketfile"
 else
     [ -n "$update" ] || \
