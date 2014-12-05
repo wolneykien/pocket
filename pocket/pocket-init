@@ -24,7 +24,7 @@ PROG_PATH="${0%/*}"
 
 show_help() {
     cat <<EOF
-Usage: $PROG [ options ] [ POCKETDIR ] [ PROVIDER:DIST[/COMP] ... ]
+Usage: $PROG [ options ] [ POCKETDIR ] [ REPO:DIST[/COMP] ... ]
 
 $PROG initializes the specified directory POCKETDIR as a pocket by
 writing down the corresponding $POCKETFILE. The default pocket
@@ -85,7 +85,7 @@ do_print_flavours()
 load_config ${config:+"$config"}
 
 if [ $# -gt 0 ]; then
-    # Set the POCKETDIR iff $1 doesn't look like a provider:component
+    # Set the POCKETDIR iff $1 doesn't look like a repo:component
     if [ "${1%%:*}" = "$1" ]; then
         POCKETDIR="$1"; shift
     fi
