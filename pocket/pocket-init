@@ -55,6 +55,7 @@ while :; do
     -q|--quiet) quiet=-q;;
     -v|--verbose) verbose=-v;;
     -V|--version) print_version; exit 0;;
+    -h|--help) show_help;;
     -c|--config) shift; config="$1";;
     -f|--flavour) shift; flavour="$1";;
     -F|avail-flavours) do_print_flavours;;
