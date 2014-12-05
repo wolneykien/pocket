@@ -71,8 +71,8 @@ find_config()
     local name="${1:-$DEFCONFNAME}"
     local config=
 
-    if [ -f "$name" ]; then
-        echo "$name"
+    if [ -f "./$name" ]; then
+        echo "./$name"
         return 0
     fi
 
