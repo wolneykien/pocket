@@ -82,7 +82,7 @@ do_print_flavours()
 
 ## Main
 
-config="$(load_config ${config:+"$config"})"
+load_config ${config:+"$config"}
 
 if [ $# -gt 0 ]; then
     # Set the POCKETDIR iff $1 doesn't look like a provider:component
