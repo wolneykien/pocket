@@ -37,6 +37,8 @@ USER_B = $(addsuffix _b, $(USER))
 RUN_A = $(HSHPRIVDIR)/chrootuid1.sh
 RUN_B = $(HSHPRIVDIR)/chrootuid2.sh
 
+RESOLVCONF = /etc/resolv.conf
+
 
 FAKEROOT = /usr/bin/fakeroot-sysv
 SHELL = /bin/bash
@@ -130,6 +132,7 @@ $(DEBPATHS): $(BUILDROOTTAR) $(BUILDROOT)/.stamp
 $(BUILDROOTTAR):
 	$(if $(REPO),,$(error No repositories are specified))
 	$(if $($(REPO)_MIRROR),,$(error Mirror of "$(REPO)" is unknown))
+	$(if $(DISTRO),,$(error Distribution name is not specified))
 	rm -rf $(BUILDROOT)/.host
 	mkdir -p $(BUILDROOT)
 	$(DEBOOTSTRAP) --download-only \
@@ -168,4 +171,29 @@ clean:
 	rm -fv $(BUILDROOT)/.installed
 	rm -fv $(BUILDROOT)/.extracted
 
-.PHONY: bootstrap download extract clean
+$(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured $(RESOLVCONF)
+	$(if $(RESOLVCONF),,$(error resolv.conf is not configured))
+	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo 'cat <<EOF >/etc/resolv.conf' >>$(BUILDROOT)/.host/entry
+	@cat $(RESOLVCONF) >>$(BUILDROOT)/.host/entry
+	@echo 'EOF' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	@echo "Setting up $(BUILDROOT)/etc/resolv.conf" >&2
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+
+update: $(BUILDROOT)/etc/resolv.conf
+	$(if $(DISTRO),,$(error Distribution name is not specified))
+	$(if $(DISTCOMPS),,$(error No distribution components are specified))
+	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(DISTRO).list' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "Add main repository source:"' >>$(BUILDROOT)/.host/entry
+	@echo 'cat /etc/apt/sources.list.d/$(DISTRO).list' >>$(BUILDROOT)/.host/entry
+	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	touch $(BUILDROOT)/.updated
+
+.PHONY: bootstrap download extract clean update

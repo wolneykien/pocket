@@ -123,6 +123,7 @@ fi
 set_config_val "$pocketfile" COMPONENTS "$*"
 
 [ -n "$HSHPRIVDIR" ] && set_config_val "$pocketfile" HSHPRIVDIR "$HSHPRIVDIR"
+[ -n "$RESOLVCONF" ] && set_config_val "$pocketfile" RESOLVCONF "$RESOLVCONF"
 
 del_config_section "$pocketfile" Repositories
 if [ $# -gt 0 ]; then
