@@ -154,4 +154,18 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	$(MAKEDEV) $(realpath $(BUILDROOT))
 	touch $@
 
+clean:
+	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
+	@echo 'set -e' >>$(BUILDROOT)/.host/entry
+	@echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry
+	@echo '  [ -O "$$f" ] || continue' >>$(BUILDROOT)/.host/entry
+	@echo '  rm -rf "$$f"' >>$(BUILDROOT)/.host/entry
+	@echo '  echo "Removed \"$$f\"" >&2' >>$(BUILDROOT)/.host/entry
+	@echo 'done' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	rm -fv $(BUILDROOT)/.configured
+	rm -fv $(BUILDROOT)/.installed
+	rm -fv $(BUILDROOT)/.extracted
+
 .PHONY: bootstrap download extract
