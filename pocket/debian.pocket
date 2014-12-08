@@ -168,4 +168,4 @@ clean:
 	rm -fv $(BUILDROOT)/.installed
 	rm -fv $(BUILDROOT)/.extracted
 
-.PHONY: bootstrap download extract
+.PHONY: bootstrap download extract clean
