@@ -181,7 +181,12 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured $(RESOLVCONF)
 	@echo "Setting up $(BUILDROOT)/etc/resolv.conf" >&2
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 
-update: $(BUILDROOT)/etc/resolv.conf
+update: clean-updated $(BUILDROOT)/.updated
+
+clean-updated:
+	rm -f $(BUILDROOT)/.updated
+
+$(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	$(if $(DISTCOMPS),,$(error No distribution components are specified))
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
@@ -196,4 +201,10 @@ update: $(BUILDROOT)/etc/resolv.conf
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	touch $(BUILDROOT)/.updated
 
-.PHONY: bootstrap download extract clean update
+install: $(if $(PKGS),,$(error Specify packages to install using 'PKGS=')) $(BUILDROOT)/.updated
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'apt-get -y install $(PKGS)' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+
+.PHONY: bootstrap download extract clean update clean-updated install
