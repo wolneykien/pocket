@@ -94,17 +94,18 @@ $(BUILDROOT)/.installed: $(BUILDROOT)/.extracted
 	@echo 'touch /var/lib/dpkg/available' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir -p /var/lib/dpkg/info' >>$(BUILDROOT)/.host/entry
 	@echo 'install() {' >>$(BUILDROOT)/.host/entry
-	@echo "  dpkg-deb -f \"\$$1\"" >>$(BUILDROOT)/.host/entry
+	@echo '  local pkg="$$1"' >>$(BUILDROOT)/.host/entry
+	@echo '  local deb="$$2"' >>$(BUILDROOT)/.host/entry
+	@echo '  dpkg-deb -f "$$deb"' >>$(BUILDROOT)/.host/entry
 	@echo "  echo 'Status: install ok installed'" \
 	  >>$(BUILDROOT)/.host/entry
-	@echo "  echo" >>$(BUILDROOT)/.host/entry
-	@echo '  touch /var/lib/dpkg/info/$$pkg.list' \
+	@echo '  echo' >>$(BUILDROOT)/.host/entry
+	@echo '  dpkg-deb -c "$$deb" | sed -n -e "/^.*[[:space:]]\.\// { s,^.*[[:space:]]\./,,; s/^$$/./; s/[[:space:]]->[[:space:]].*$$//; s,/$$,,; s,^.*$$,/&,; p }" >/var/lib/dpkg/info/$$pkg.list' \
 	  >>$(BUILDROOT)/.host/entry
-	@echo '  echo "Update $$1 status" >&2' \
+	@echo "  echo \"Update '\$$pkg' status\" >&2" \
 	  >>$(BUILDROOT)/.host/entry
 	@echo '}' >>$(BUILDROOT)/.host/entry
-	@sed -e 's/^[^[:space:]]\+[[:space:]]\+//' \
-	     -e 's,^.*$$,install /.host& >>/var/lib/dpkg/status,' \
+	@sed -e 's,^\([^[:space:]]\+\)[[:space:]]\+\(.*\)$$,install "\1" "/.host\2" >>/var/lib/dpkg/status,' \
 	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
