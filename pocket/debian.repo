@@ -1,0 +1,5 @@
+
+debian_MIRROR = http://ftp.debian.org/debian
+debian_DISTRO = stable
+debian_COMPONENTS = main contrib
+debian_PACKAGES = vim-nox

@@ -41,19 +41,17 @@ RUN_B = $(HSHPRIVDIR)/chrootuid2.sh
 FAKEROOT = /usr/bin/fakeroot-sysv
 SHELL = /bin/bash
 
-
-REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
-DISTRO = $(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%, $(COMPONENTS))))))
-DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%, $(COMPONENTS)))
-
-# TODO: Find the mirror by $(REPO)
-MIRROR = http://ftp.us.debian.org/debian
-
 DEBOOTSTRAP = /usr/sbin/debootstrap
 VARIANT = minbase
 BBOXPKG = busybox-static
-PKGLIST = fakeroot $(BBOXPKG)
+SYSPKGLIST = fakeroot $(BBOXPKG)
 DPKGX = dpkg -x
+
+REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
+DISTRO = $(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%, $(COMPONENTS))))))
+USER_DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%, $(COMPONENTS)))
+DISTCOMPS = $(if $(USER_DISTCOMPS),$(USER_DISTCOMPS),$(if $($(REPO)_COMPONENTS),$($(REPO)_COMPONENTS)))
+PKGLIST = $(if $($(REPO)_PACKAGES),$(SYSPKGLIST) $($(REPO)_PACKAGES),$(SYSPKGLIST))
 
 DEBPATHS = $(BUILDROOT)/.host/debootstrap/debpaths
 
@@ -130,13 +128,15 @@ $(DEBPATHS): $(BUILDROOTTAR) $(BUILDROOT)/.stamp
 	touch $@
 
 $(BUILDROOTTAR):
+	$(if $(REPO),,$(error No repositories are specified))
+	$(if $($(REPO)_MIRROR),,$(error Mirror of "$(REPO)" is unknown))
 	rm -rf $(BUILDROOT)/.host
 	mkdir -p $(BUILDROOT)
 	$(DEBOOTSTRAP) --download-only \
 		       --variant=$(VARIANT) \
 	    $(if $(PKGLIST),--include=$(subst $(space),$(comma),$(PKGLIST))) \
 	    $(if $(DISTCOMPS),--components=$(subst $(space),$(comma),$(DISTCOMPS))) \
-		$(DISTRO) $(BUILDROOT)/.host $(MIRROR)
+		$(DISTRO) $(BUILDROOT)/.host $($(REPO)_MIRROR)
 	tar cpf $@ -C $(BUILDROOT)/.host $(BUILDROOTTARDIRS)
 
 $(BUILDROOT)/.stamp:

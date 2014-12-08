@@ -178,6 +178,38 @@ del_config_val()
     sed -i -e "/^$name[[:space:]]*=/ d" "$config"
 }
 
+del_config_section()
+{
+    local config="$1"
+    local section="$2"
+
+    assert_config "$config"
+
+    [ -n "$section" ] || fatal 'Section name is empty\n'
+
+    sed -i -n \
+        -e '/^[[:space:]]*$/ { H; d }' \
+        -e "/^#[[:space:]]*$section[[:space:]]*\$/ { H; n; b chkdash }" \
+        -e 'H; g; s/^\n//; p; s/^.*$//; h; d' \
+        -e ': chkdash' \
+        -e '/^#[[:space:]]*---\+/ { s/^.*$//; h; n; b found }' \
+        -e 'H; g; s/^\n//; p; s/^.*$//; h; d' \
+        -e ': found' \
+        -e '/^[[:space:]]*$/ { H; n; b found }' \
+        -e '/^#[[:space:]]*---\+/ {
+                H; g; s/^\n//;
+                s/\n#[\t ]*[^\t ]\+\n#[\t ]*---\+[[:space:]]*$/&/p;
+                t new;
+                s/^.*$//; h;
+                n; b found
+            }' \
+        -e '/#[[:space:]]*[^[:space:]]\+/ { H; n; b found }' \
+        -e 's/^.*$//; h; n; b found' \
+        -e ': new' \
+        -e 's/^.*$//; h; d' \
+      "$config"
+}
+
 
 avail_flavours()
 {

@@ -121,3 +121,20 @@ else
 fi
 
 set_config_val "$pocketfile" COMPONENTS "$*"
+
+del_config_section "$pocketfile" Repositories
+if [ $# -gt 0 ]; then
+    echo >>"$pocketfile"
+    echo >>"$pocketfile"
+    echo "# Repositories" >>"$pocketfile"
+    echo "# ------------" >>"$pocketfile"
+    for comp in "$@"; do echo "${comp%%:*}"; done | \
+        sort -u | \
+        while read repo; do
+            repoconf="$(find_config "$repo.repo")"
+            [ -n "$repoconf" ] || \
+                fatal 'Configuration file for repository "%s" not found\n' \
+                "$repo"
+            cat "$repoconf" >>"$pocketfile"
+        done
+fi
