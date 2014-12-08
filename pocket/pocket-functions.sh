@@ -148,14 +148,14 @@ set_config_val()
             -e "s/^$name[[:space:]]*=.*\$/$name = $val/" \
             -e 't out' \
             -e 'p' \
-            -e "\$ s/^.*\$/$name=\"$val\"/p" \
+            -e "\$ s/^.*\$/$name = $val/p" \
             -e 'd' \
             -e ': out' \
             -e '    n; b out' \
           "$config"
     else
         sed -i \
-            -e "s/^$name[[:space:]]*=.*\$/$name= $val/" \
+            -e "s/^$name[[:space:]]*=.*\$/$name=\"$val\"/" \
             -e 't out' \
             -e 'p' \
             -e "\$ s/^.*\$/$name=\"$val\"/p" \
