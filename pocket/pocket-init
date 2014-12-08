@@ -122,6 +122,8 @@ fi
 
 set_config_val "$pocketfile" COMPONENTS "$*"
 
+[ -n "$HSHPRIVDIR" ] && set_config_val "$pocketfile" HSHPRIVDIR "$HSHPRIVDIR"
+
 del_config_section "$pocketfile" Repositories
 if [ $# -gt 0 ]; then
     echo >>"$pocketfile"
