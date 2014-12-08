@@ -30,7 +30,7 @@ comma:= ,
 empty:=
 space:= $(empty) $(empty)
 
-HSHPRIVDIR = /usr/libexec/hasher-priv
+HSHPRIVDIR = /usr/lib/hasher-priv
 MAKEDEV = $(HSHPRIVDIR)/makedev.sh
 USER_A = $(addsuffix _a, $(USER))
 USER_B = $(addsuffix _b, $(USER))
