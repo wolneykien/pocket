@@ -205,7 +205,7 @@ $(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to
 
 install: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
-	@echo 'apt-get -y install $(PKGS)' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get -y --no-install-recommends install $(PKGS)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
