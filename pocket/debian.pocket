@@ -130,6 +130,8 @@ $(BUILDROOT)/.installed: $(BUILDROOT)/.extracted
 	@echo '}' >>$(BUILDROOT)/.host/entry
 	@sed -e 's,^\([^[:space:]]\+\)[[:space:]]\+\(.*\)$$,install "\1" "/.host\2" >>/var/lib/dpkg/status,' \
 	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
+	@echo 'ln -sf $(FAKEROOT) /usr/bin/fakeroot' >>$(BUILDROOT)/.host/entry
+	@echo 'Installed fakeroot symlink' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	touch $@
