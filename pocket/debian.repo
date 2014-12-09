@@ -2,4 +2,5 @@
 debian_MIRROR = http://ftp.debian.org/debian
 debian_DISTRO = stable
 debian_COMPONENTS = main contrib
-debian_PACKAGES = vim-nox
+debian_INITIAL_PACKAGES = gawk
+debian_EXTRA_PACKAGES = less vim-nox hexdump

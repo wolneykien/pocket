@@ -52,7 +52,7 @@ USERSHELL = /bin/bash
 DEBOOTSTRAP = /usr/sbin/debootstrap
 VARIANT = minbase
 BBOXPKG = busybox-static
-SYSPKGLIST = fakeroot $(BBOXPKG) rsync gawk
+SYSPKGLIST = fakeroot $(BBOXPKG) rsync
 BUILDPKGLIST = build-essential devscripts equivs
 DPKGX = dpkg -x
 
@@ -60,7 +60,8 @@ REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
 DISTRO = $(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%, $(COMPONENTS))))))
 USER_DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%, $(COMPONENTS)))
 DISTCOMPS = $(if $(USER_DISTCOMPS),$(USER_DISTCOMPS),$(if $($(REPO)_COMPONENTS),$($(REPO)_COMPONENTS)))
-PKGLIST = $(if $($(REPO)_PACKAGES),$(SYSPKGLIST) $($(REPO)_PACKAGES),$(SYSPKGLIST))
+SYSPKGLIST += $($(REPO)_INITIAL_PACKAGES)
+BUILDPKGLIST += $($(REPO)_EXTRA_PACKAGES)
 
 DEBPATHS = $(BUILDROOT)/.host/debootstrap/debpaths
 
@@ -177,7 +178,7 @@ $(BUILDROOTTAR):
 	mkdir -p $(BUILDROOT)
 	$(DEBOOTSTRAP) --download-only \
 		       --variant=$(VARIANT) \
-	    $(if $(PKGLIST),--include=$(subst $(space),$(comma),$(PKGLIST))) \
+	    $(if $(trim $(SYSPKGLIST)),--include=$(subst $(space),$(comma),$(trim $(SYSPKGLIST)))) \
 	    $(if $(DISTCOMPS),--components=$(subst $(space),$(comma),$(DISTCOMPS))) \
 		$(DISTRO) $(BUILDROOT)/.host $($(REPO)_MIRROR)
 	tar cpf $@ -C $(BUILDROOT)/.host $(BUILDROOTTARDIRS)
@@ -289,7 +290,7 @@ install-buildenv: $(BUILDROOT)/.buildenv
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
-	@echo 'apt-get install -y --no-install-recommends $(BUILDPKGLIST)' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get install -y --no-install-recommends $(trim $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
