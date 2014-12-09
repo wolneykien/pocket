@@ -337,7 +337,7 @@ build: $(BUILDROOT)/.builddeps
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
-	@echo 'dpkg-buildpackage -nc -us -uc' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg-buildpackage -F -nc -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
@@ -345,7 +345,7 @@ rebuild: $(BUILDROOT)/.builddeps
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
-	@echo 'dpkg-buildpackage -us -uc' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg-buildpackage -F -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
