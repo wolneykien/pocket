@@ -205,7 +205,7 @@ clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 	@if [ -d $(BUILDROOT)/$(BUILDER_HOME) ]; then \
 	   echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
 	   echo 'set -e' >>$(BUILDROOT)/.host/entry; \
-	   echo 'find "$(BUILDER_HOME)" -mindepth 1 -exec rm -rf {} \;' >>$(BUILDROOT)/.host/entry; \
+	   echo 'find "$(BUILDER_HOME)" -mindepth 1 -prune -exec rm -rf {} \;' >>$(BUILDROOT)/.host/entry; \
 	   echo 'echo "Cleaned \"$(BUILDER_HOME)\"" >&2' >>$(BUILDROOT)/.host/entry; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
 	   $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
