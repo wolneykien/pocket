@@ -53,6 +53,7 @@ DEBOOTSTRAP = /usr/sbin/debootstrap
 VARIANT = minbase
 BBOXPKG = busybox-static
 SYSPKGLIST = fakeroot $(BBOXPKG)
+BUILDPKGLIST = build-essential devscripts equivs gawk
 DPKGX = dpkg -x
 
 REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
@@ -264,4 +265,10 @@ shell: $(BUILDROOT)/.configured
 	fi; \
 	exit 0
 
-.PHONY: bootstrap download extract clean clean-updated update install shell
+install-buildenv: $(BUILDROOT)/.updated
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'apt-get install -y --no-install-recommends $(BUILDPKGLIST)' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+
+.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell
