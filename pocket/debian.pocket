@@ -178,7 +178,7 @@ $(BUILDROOTTAR):
 	mkdir -p $(BUILDROOT)
 	$(DEBOOTSTRAP) --download-only \
 		       --variant=$(VARIANT) \
-	    $(if $(trim $(SYSPKGLIST)),--include=$(subst $(space),$(comma),$(trim $(SYSPKGLIST)))) \
+	    $(if $(strip $(SYSPKGLIST)),--include=$(subst $(space),$(comma),$(strip $(SYSPKGLIST)))) \
 	    $(if $(DISTCOMPS),--components=$(subst $(space),$(comma),$(DISTCOMPS))) \
 		$(DISTRO) $(BUILDROOT)/.host $($(REPO)_MIRROR)
 	tar cpf $@ -C $(BUILDROOT)/.host $(BUILDROOTTARDIRS)
@@ -290,7 +290,7 @@ install-buildenv: $(BUILDROOT)/.buildenv
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
-	@echo 'apt-get install -y --no-install-recommends $(trim $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get install -y --no-install-recommends $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
