@@ -36,12 +36,18 @@ USER_A = $(addsuffix _a, $(USER))
 USER_B = $(addsuffix _b, $(USER))
 RUN_A = $(HSHPRIVDIR)/chrootuid1.sh
 RUN_B = $(HSHPRIVDIR)/chrootuid2.sh
+GETUGID_A = $(HSHPRIVDIR)/getugid1.sh
+GETUGID_B = $(HSHPRIVDIR)/getugid2.sh
+ROOTER = rooter
+BUILDER = builder
+BUILDER_HOME = /usr/src
 
 RESOLVCONF = /etc/resolv.conf
 
 
 FAKEROOT = /usr/bin/fakeroot-sysv
 SHELL = /bin/bash
+USERSHELL = /bin/bash
 
 DEBOOTSTRAP = /usr/sbin/debootstrap
 VARIANT = minbase
@@ -72,6 +78,23 @@ $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
 	@echo 'touch /etc/group' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/shadow' >>$(BUILDROOT)/.host/entry
 	@echo 'update-passwd' >>$(BUILDROOT)/.host/entry
+	@UGID_A="$$($(GETUGID_A))"; \
+	 if [ -n "$UGID_A" ]; then \
+	   echo "groupadd -g $${UGID_A#*:} $(ROOTER)" >>$(BUILDROOT)/.host/entry; \
+	   echo "useradd -d /root -u $${UGID_A%%:*} -g $${UGID_A#*:} -s $(USERSHELL) $(ROOTER)" >>$(BUILDROOT)/.host/entry; \
+	 else \
+	   echo 'Unable to get user and group IDs of the pseudouser A' >&2; \
+	   exit 1; \
+	 fi
+	@UGID_B="$$($(GETUGID_B))"; \
+	 if [ -n "$UGID_B" ]; then \
+	   echo 'chmod 1777 $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry; \
+	   echo "groupadd -g $${UGID_B#*:} $(BUILDER)" >>$(BUILDROOT)/.host/entry; \
+	   echo "useradd -d $(BUILDER_HOME) -u $${UGID_B%%:*} -g $${UGID_B#*:} -s $(USERSHELL) $(BUILDER)" >>$(BUILDROOT)/.host/entry; \
+	 else \
+	   echo 'Unable to get user and group IDs of the pseudouser B' >&2; \
+	   exit 1; \
+	 fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	touch $@
@@ -204,9 +227,25 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf
 $(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to install using 'PKGS=')))
 
 install: $(BUILDROOT)/.updated
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
 	@echo 'apt-get -y --no-install-recommends install $(PKGS)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
-.PHONY: bootstrap download extract clean update clean-updated install
+shell: $(BUILDROOT)/.configured
+	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@if [ "$(USER)" = '$(ROOTER)' ]; then \
+	   echo "export TMPDIR='/tmp'" >>$(BUILDROOT)/.host/entry; \
+	   echo 'cd "/root"' >>$(BUILDROOT)/.host/entry; \
+	   echo '$(USERSHELL)' >>$(BUILDROOT)/.host/entry; \
+	   use_pty=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	else \
+	   echo "export TMPDIR='$(BUILDER_HOME)/tmp'" >>$(BUILDROOT)/.host/entry; \
+	   echo 'mkdir -p "$$TMPDIR"' >>$(BUILDROOT)/.host/entry; \
+	   echo 'cd "$(BUILDER_HOME)"' >>$(BUILDROOT)/.host/entry; \
+	   echo '$(USERSHELL)' >>$(BUILDROOT)/.host/entry; \
+	   use_pty=yes $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	fi; \
+	exit 0
+
+.PHONY: bootstrap download extract clean update clean-updated install shell
