@@ -52,8 +52,8 @@ USERSHELL = /bin/bash
 DEBOOTSTRAP = /usr/sbin/debootstrap
 VARIANT = minbase
 BBOXPKG = busybox-static
-SYSPKGLIST = fakeroot $(BBOXPKG)
-BUILDPKGLIST = build-essential devscripts equivs gawk rsync
+SYSPKGLIST = fakeroot $(BBOXPKG) rsync gawk
+BUILDPKGLIST = build-essential devscripts equivs
 DPKGX = dpkg -x
 
 REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
@@ -197,9 +197,10 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
-	rm -fv $(BUILDROOT)/.configured
-	rm -fv $(BUILDROOT)/.installed
-	rm -fv $(BUILDROOT)/.extracted
+	rm -fv $(BUILDROOT)/.builddeps $(BUILDROOT)/.buildenv
+	rm -fv $(BUILDROOT)/.updated
+	rm -fv $(BUILDROOT)/.configured $(BUILDROOT)/.installed \
+	       $(BUILDROOT)/.extracted
 
 clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 	@if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
@@ -265,11 +266,14 @@ shell: $(BUILDROOT)/.configured
 	fi; \
 	exit 0
 
-install-buildenv: $(BUILDROOT)/.updated
+install-buildenv: $(BUILDROOT)/.buildenv
+
+$(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'apt-get install -y --no-install-recommends $(BUILDPKGLIST)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	touch $@
 
 $(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy using 'FROM=')))
 
@@ -281,24 +285,44 @@ sync-in: $(BUILDROOT)/.stamp
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
-make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/build-deps.deb
+make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 
-$(BUILDROOT)$(BUILDER_HOME)/build-deps.deb: $(BUILDROOT)$(BUILDER_HOME)/SOURCE
+$(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv
+	$(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/*),,$(error Source is empty. Sync-in a source directory first using 'make sync-in'))
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo 'mk-build-deps' >>$(BUILDROOT)/.host/entry
-	@echo 'mv -vf *build-deps*.deb ../build-deps.deb' >>$(BUILDROOT)/.host/entry
-	@echo 'touch $(BUILDER_HOME)/build-deps.deb' >>$(BUILDROOT)/.host/entry
-	@echo '[ -f $(BUILDER_HOME)/build-deps.deb ]' >>$(BUILDROOT)/.host/entry
+	@echo 'mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@echo '[ -f $(BUILDER_HOME)/.build-deps.deb ]' >>$(BUILDROOT)/.host/entry
+	@echo 'touch $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
-install-builddeps: $(BUILDROOT)$(BUILDER_HOME)/build-deps.deb
+install-builddeps: $(BUILDROOT)/.builddeps
+
+$(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
-	@echo 'dpkg --unpack $(BUILDER_HOME)/build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo 'apt-get install -y -f --no-install-recommends' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	touch $@
 
-.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in make-depspkg install-builddeps
+build: $(BUILDROOT)/.builddeps
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg-buildpackage -nc -us -uc' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
+rebuild: $(BUILDROOT)/.builddeps
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg-buildpackage -us -uc' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
+.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in make-depspkg install-builddeps build rebuild
