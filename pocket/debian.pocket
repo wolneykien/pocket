@@ -80,6 +80,9 @@ $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
 	@echo 'touch /etc/group' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/shadow' >>$(BUILDROOT)/.host/entry
 	@echo 'update-passwd' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	touch $@
 
 $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
