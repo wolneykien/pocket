@@ -170,6 +170,10 @@ $(BUILDROOT)/.stamp:
 	chgrp $(USER_A) $(BUILDROOT)
 	chmod 1775 $(BUILDROOT)
 	mkdir -p $(BUILDROOT)/.host
+	mkdir -p $(BUILDROOT)/.in
+	mkdir -p $(BUILDROOT)/.out
+	chgrp $(USER_B) $(BUILDROOT)/.out
+	chmod 1770 $(BUILDROOT)/.out
 	touch $@
 
 $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
@@ -180,7 +184,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	$(MAKEDEV) $(realpath $(BUILDROOT))
 	touch $@
 
-clean:
+clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
 	@echo 'set -e' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry
@@ -193,6 +197,16 @@ clean:
 	rm -fv $(BUILDROOT)/.configured
 	rm -fv $(BUILDROOT)/.installed
 	rm -fv $(BUILDROOT)/.extracted
+
+clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
+	@if [ -d $(BUILDROOT)/$(BUILDER_HOME) ]; then \
+	   echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
+	   echo 'set -e' >>$(BUILDROOT)/.host/entry; \
+	   echo 'find "$(BUILDER_HOME)" -mindepth 1 -exec rm -rf {} \;' >>$(BUILDROOT)/.host/entry; \
+	   echo 'echo "Cleaned \"$(BUILDER_HOME)\"" >&2' >>$(BUILDROOT)/.host/entry; \
+	   chmod 0755 $(BUILDROOT)/.host/entry; \
+	   $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	 fi
 
 $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured $(RESOLVCONF)
 	$(if $(RESOLVCONF),,$(error resolv.conf is not configured))
@@ -227,8 +241,8 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf
 $(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to install using 'PKGS=')))
 
 install: $(BUILDROOT)/.updated
-	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
-	@echo 'apt-get -y --no-install-recommends install $(PKGS)' >>$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'apt-get install -y --no-install-recommends $(PKGS)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
@@ -238,14 +252,65 @@ shell: $(BUILDROOT)/.configured
 	   echo "export TMPDIR='/tmp'" >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd "/root"' >>$(BUILDROOT)/.host/entry; \
 	   echo '$(USERSHELL)' >>$(BUILDROOT)/.host/entry; \
-	   use_pty=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	   $(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) use_pty=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	else \
 	   echo "export TMPDIR='$(BUILDER_HOME)/tmp'" >>$(BUILDROOT)/.host/entry; \
 	   echo 'mkdir -p "$$TMPDIR"' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd "$(BUILDER_HOME)"' >>$(BUILDROOT)/.host/entry; \
 	   echo '$(USERSHELL)' >>$(BUILDROOT)/.host/entry; \
-	   use_pty=yes $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	   $(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) use_pty=yes $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
 	fi; \
 	exit 0
 
-.PHONY: bootstrap download extract clean update clean-updated install shell
+$(if $(filter save-snapshot,$(MAKECMDGOALS)),$(if $(SNAPSHOT),,$(error Specify snapshot name to save into using 'SNAPSHOT=')))
+
+save-snapshot: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
+	@if [ -f "$(BUILDROOT)/.snapshots/$(SNAPSHOT).tar" ]; then \
+	  echo "Snapshot '$(SNAPSHOT)' already exists" >&2; \
+	  exit 1; \
+	fi
+	@filelist="$$(ls -1 $(BUILDROOT) | grep -v '^dev$$' | tr '\n' ' ')"; \
+	 [ -f $(BUILDROOT)/.extracted ] && filelist="$$filelist .extracted"; \
+	 [ -f $(BUILDROOT)/.installed ] && filelist="$$filelist .installed"; \
+	 [ -f $(BUILDROOT)/.configured ] && filelist="$$filelist .configured"; \
+	 if [ -z "$$filelist" ]; then \
+	   echo 'Nothing to save -- buildroot is clean' >&2; \
+	 else \
+	   echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
+	   echo 'set -ex' >>$(BUILDROOT)/.host/entry; \
+	   echo 'mkdir -p /.snapshots' >>$(BUILDROOT)/.host/entry; \
+	   echo 'cd /' >>$(BUILDROOT)/.host/entry; \
+	   echo "$(BUSYBOX) tar cpf '/.snapshots/$(SNAPSHOT).tar' $$filelist" >>$(BUILDROOT)/.host/entry; \
+	   chmod 0755 $(BUILDROOT)/.host/entry; \
+	   $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry; \
+	 fi
+
+$(if $(filter load-snapshot,$(MAKECMDGOALS)),$(if $(SNAPSHOT),,$(error Specify snapshot name to load using 'SNAPSHOT=')))
+
+load-snapshot: clean
+	@if [ ! -f "$(BUILDROOT)/.snapshots/$(SNAPSHOT).tar" ]; then \
+	  echo "Snapshot '$(SNAPSHOT)' not found" >&2; \
+	  exit 1; \
+	fi
+	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
+	@echo 'set -e' >>$(BUILDROOT)/.host/entry
+	@echo 'cd /' >>$(BUILDROOT)/.host/entry
+	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
+	@echo '$(BUSYBOX) tar xpf "/.snapshots/$(SNAPSHOT).tar"' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+
+$(if $(filter delete-snapshot,$(MAKECMDGOALS)),$(if $(SNAPSHOT),,$(error Specify snapshot name to delete using 'SNAPSHOT=')))
+
+delete-snapshot: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
+	@if [ ! -f "$(BUILDROOT)/.snapshots/$(SNAPSHOT).tar" ]; then \
+	  echo "Snapshot '$(SNAPSHOT)' not found" >&2; \
+	  exit 1; \
+	fi
+	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
+	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -fv "/.snapshots/$(SNAPSHOT).tar"' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+
+.PHONY: bootstrap download extract clean clean-updated update install shell load-snapshot save-snapshot delete-snapshot
