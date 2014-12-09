@@ -154,6 +154,7 @@ $(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
 	   $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	 fi
+	touch $@
 
 $(BUILDROOT)$(BUSYBOX):
 	@ \
