@@ -73,12 +73,15 @@ APTARCHIVES = /var/cache/apt/archives
 
 bootstrap: $(BUILDROOT)/.configured
 
-$(BUILDROOT)/.configured: $(BUILDROOT)/.installed
+$(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/passwd' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/group' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/shadow' >>$(BUILDROOT)/.host/entry
 	@echo 'update-passwd' >>$(BUILDROOT)/.host/entry
+
+$(BUILDROOT)/.configured: $(BUILDROOT)/.installed
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@UGID_A="$$($(GETUGID_A))"; \
 	 if [ -n "$UGID_A" ]; then \
 	   echo "groupadd -g $${UGID_A#*:} $(ROOTER)" >>$(BUILDROOT)/.host/entry; \
@@ -111,7 +114,7 @@ $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	touch $@
 
-$(BUILDROOT)/.installed: $(BUILDROOT)/.extracted
+$(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
 	@echo 'rm -f /var/lib/dpkg/status' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /var/lib/dpkg/status' >>$(BUILDROOT)/.host/entry
@@ -126,16 +129,27 @@ $(BUILDROOT)/.installed: $(BUILDROOT)/.extracted
 	@echo '  echo' >>$(BUILDROOT)/.host/entry
 	@echo '  dpkg-deb -c "$$deb" | sed -n -e "/^.*[[:space:]]\.\// { s,^.*[[:space:]]\./,,; s/^$$/./; s/[[:space:]]->[[:space:]].*$$//; s,/$$,,; s,^.*$$,/&,; p }" >/var/lib/dpkg/info/$$pkg.list' \
 	  >>$(BUILDROOT)/.host/entry
-	@echo "  echo \"Update '\$$pkg' status\" >&2" \
+	@echo "  echo \"Updated '\$$pkg' status\" >&2" \
 	  >>$(BUILDROOT)/.host/entry
 	@echo '}' >>$(BUILDROOT)/.host/entry
-	@sed -e 's,^\([^[:space:]]\+\)[[:space:]]\+\(.*\)$$,install "\1" "/.host\2" >>/var/lib/dpkg/status,' \
-	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
+	@sed -e 's,^\([^[:space:]]\+\)[[:space:]]\+\(.*\)$$,install "\1" "/.host\2" >>/var/lib/dpkg/status,' $(DEBPATHS) >>$(BUILDROOT)/.host/entry
 	@echo 'ln -sf $(FAKEROOT) /usr/bin/fakeroot' >>$(BUILDROOT)/.host/entry
 	@echo 'echo "Installed fakeroot symlink" >&2' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	touch $@
+
+$(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
+	@pkgs="$$(sed -e 's/^[^[:space:]]\+[[:space:]]\+//' -e 's,^.*$$,/.host&,' -e 's,^/.host/var/cache/apt/archives/,,' $(DEBPATHS) | tr '\n' ' ')"; \
+	 if [ -n "$$pkgs" ]; then \
+	   echo "Reinstalling packages..." >&2; \
+	   echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry; \
+	   echo 'cp /var/lib/dpkg/status /var/lib/dpkg/status.ok' >>$(BUILDROOT)/.host/entry; \
+	   echo 'cd /.host/var/cache/apt/archives' >>$(BUILDROOT)/.host/entry; \
+	   echo "dpkg -i $$pkgs" >>$(BUILDROOT)/.host/entry; \
+	   chmod 0755 $(BUILDROOT)/.host/entry; \
+	   $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	 fi
 
 $(BUILDROOT)$(BUSYBOX):
 	@ \
@@ -185,6 +199,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	mkdir $(BUILDROOT)/dev/pts
 	chgrp $(USER_A) $(BUILDROOT)/dev/pts
 	$(MAKEDEV) $(realpath $(BUILDROOT))
+	mkdir -m1777 $(BUILDROOT)/dev/shm
 	touch $@
 
 clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
@@ -197,10 +212,14 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
-	rm -fv $(BUILDROOT)/.builddeps $(BUILDROOT)/.buildenv
+	rm -fv $(BUILDROOT)/.builddeps
+	rm -fv $(BUILDROOT)/.buildenv
 	rm -fv $(BUILDROOT)/.updated
-	rm -fv $(BUILDROOT)/.configured $(BUILDROOT)/.installed \
-	       $(BUILDROOT)/.extracted
+	rm -fv $(BUILDROOT)/.configured
+	rm -fv $(BUILDROOT)/.installed
+	rm -fv $(BUILDROOT)/.preconfigured
+	rm -fv $(BUILDROOT)/.preinstalled
+	rm -fv $(BUILDROOT)/.extracted
 
 clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 	@if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
