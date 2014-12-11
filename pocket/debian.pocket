@@ -236,7 +236,7 @@ clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 	   $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
 	 fi
 
-$(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured $(RESOLVCONF)
+$(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	$(if $(RESOLVCONF),,$(error resolv.conf is not configured))
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
 	@echo 'cat <<EOF >/etc/resolv.conf' >>$(BUILDROOT)/.host/entry
@@ -301,13 +301,18 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 
 $(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy using 'FROM=')))
 
-sync-in: $(BUILDROOT)/.stamp
-	rsync -a --inplace --delete $(FROM)/ $(BUILDROOT)/.in/SOURCE
+sync-in: $(BUILDROOT)/.configured
+	rsync -a --inplace $(if $(OVER),,--delete) $(FROM)/ $(BUILDROOT)/.in/SOURCE
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'rsync -a --inplace --delete /.in/SOURCE ./' >>$(BUILDROOT)/.host/entry
+	@echo 'rsync -a --inplace $(if $(OVER),,--delete) /.in/SOURCE ./' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
+$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into using 'TO=')))
+
+sync-out: $(BUILDROOT)/.configured
+	rsync -a --inplace $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(TO)
 
 make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 
@@ -316,7 +321,12 @@ $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
-	@echo 'mk-build-deps' >>$(BUILDROOT)/.host/entry
+	@echo '[ -f debian/control.orig ] || cp -v debian/control debian/control.orig' >>$(BUILDROOT)/.host/entry
+	@echo 'sed -i -e "/^#/ d" debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'ret=0' >>$(BUILDROOT)/.host/entry
+	@echo 'mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
+	@echo '[ ! -f debian/control.orig ] || mv debian/control.orig debian/control' >>$(BUILDROOT)/.host/entry
+	@echo '[ $$ret -eq 0 ]' >>$(BUILDROOT)/.host/entry
 	@echo 'mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo '[ -f $(BUILDER_HOME)/.build-deps.deb ]' >>$(BUILDROOT)/.host/entry
 	@echo 'touch $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
@@ -349,4 +359,4 @@ rebuild: $(BUILDROOT)/.builddeps
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
-.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in make-depspkg install-builddeps build rebuild
+.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps build rebuild
