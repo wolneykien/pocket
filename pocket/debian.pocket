@@ -312,7 +312,7 @@ sync-in: $(BUILDROOT)/.configured
 $(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into using 'TO=')))
 
 sync-out: $(BUILDROOT)/.configured
-	rsync -a --inplace $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(TO)
+	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(TO)
 
 make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 
