@@ -41,6 +41,10 @@ GETUGID_B = $(HSHPRIVDIR)/getugid2.sh
 ROOTER = rooter
 BUILDER = builder
 BUILDER_HOME = /usr/src
+INDIR = /.in
+OUTDIR = /.out
+REPODIR = $(OUTDIR)/repo
+OUTNAME = local
 
 RESOLVCONF = /etc/resolv.conf
 
@@ -53,7 +57,7 @@ DEBOOTSTRAP = /usr/sbin/debootstrap
 VARIANT = minbase
 BBOXPKG = busybox-static
 SYSPKGLIST = fakeroot $(BBOXPKG) rsync
-BUILDPKGLIST = build-essential devscripts equivs
+BUILDPKGLIST = build-essential devscripts equivs reprepro
 DPKGX = dpkg -x
 
 REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
@@ -192,10 +196,10 @@ $(BUILDROOT)/.stamp:
 	chgrp $(USER_A) $(BUILDROOT)
 	chmod 1775 $(BUILDROOT)
 	mkdir -p $(BUILDROOT)/.host
-	mkdir -p $(BUILDROOT)/.in
-	mkdir -p $(BUILDROOT)/.out
-	chgrp $(USER_B) $(BUILDROOT)/.out
-	chmod 1770 $(BUILDROOT)/.out
+	mkdir -p $(BUILDROOT)$(INDIR)
+	mkdir -p $(BUILDROOT)$(OUTDIR)
+	chgrp $(USER_B) $(BUILDROOT)$(OUTDIR)
+	chmod 1770 $(BUILDROOT)$(OUTDIR)
 	touch $@
 
 $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
@@ -207,7 +211,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	mkdir -m1777 $(BUILDROOT)/dev/shm
 	touch $@
 
-clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
+clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder clean-repo
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
 	@echo 'set -e' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry
@@ -300,10 +304,10 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 $(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy using 'FROM=')))
 
 sync-in: $(BUILDROOT)/.configured
-	rsync -a --inplace $(if $(OVER),,--delete) $(FROM)/ $(BUILDROOT)/.in/SOURCE
+	rsync -a --inplace $(if $(OVER),,--delete) $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'rsync -a --inplace $(if $(OVER),,--delete) /.in/SOURCE ./' >>$(BUILDROOT)/.host/entry
+	@echo 'rsync -a --inplace $(if $(OVER),,--delete) $(INDIR)/SOURCE ./' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
@@ -341,20 +345,67 @@ $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
-build: $(BUILDROOT)/.builddeps
+cleanpkg:
+	rm -f $(BUILDROOT)/.buildok
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -f *.deb *.dsc *.changes *.tar.*' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
+buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo 'dpkg-buildpackage -F -nc -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	touch $(BUILDROOT)/.buildok
 
-rebuild: $(BUILDROOT)/.builddeps
+rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo 'dpkg-buildpackage -F -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	touch $(BUILDROOT)/.buildok
+
+makerepo: $(BUILDROOT)/.repodone
+
+$(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
+	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -rf $(REPODIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir -p $(REPODIR)/conf' >>$(BUILDROOT)/.host/entry
+	@echo "archs=\"\$$(cat *.changes | sed -n -e '/^Architecture:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^$$/ d' -e '/^all$$/ d' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry
+	@echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,$$ { s/^[[:space:]]\+[0-9a-f]\+[[:space:]]\+[0-9]\+[[:space:]]\+\([^[:space:]]\+\)\(\/[^[:space:]]\+\)[[:space:]].*$$/\1/p }' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry
+	@echo 'cat <<EOF >$(REPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
+	@echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry
+	@echo 'Label: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
+	@echo 'Codename: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
+	@echo 'Architectures: $$archs' >>$(BUILDROOT)/.host/entry
+	@echo 'Components: $$comps' >>$(BUILDROOT)/.host/entry
+	@echo 'Description: Repository of generated packages' >>$(BUILDROOT)/.host/entry
+	@echo 'EOF' >>$(BUILDROOT)/.host/entry
+	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
+	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
+	@echo '  reprepro -b $(REPODIR) --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
+	@echo 'done' >>$(BUILDROOT)/.host/entry
+	@echo 'chmod -R a+rX $(REPODIR)' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	touch $@
+
+clean-repo:
+	rm -f $(BUILDROOT)/.repodone
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -rf $(REPODIR)' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
+build: buildpkg makerepo
+rebuild: rebuildpkg makerepo
 
 .PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps build rebuild
