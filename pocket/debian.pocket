@@ -254,13 +254,11 @@ clean-updated:
 $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	$(if $(DISTCOMPS),,$(error No distribution components are specified))
-	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(DISTRO).list' >>$(BUILDROOT)/.host/entry
-	@echo 'echo "Add main repository source:"' >>$(BUILDROOT)/.host/entry
-	@echo 'cat /etc/apt/sources.list.d/$(DISTRO).list' >>$(BUILDROOT)/.host/entry
-	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
