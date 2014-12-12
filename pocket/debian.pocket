@@ -42,8 +42,9 @@ ROOTER = rooter
 BUILDER = builder
 BUILDER_HOME = /usr/src
 INDIR = /.in
+INREPODIR = $(INDIR)/repo
 OUTDIR = /.out
-REPODIR = $(OUTDIR)/repo
+OUTREPODIR = $(OUTDIR)/repo
 OUTNAME = local
 
 RESOLVCONF = /etc/resolv.conf
@@ -250,19 +251,42 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	@echo "Setting up $(BUILDROOT)/etc/resolv.conf" >&2
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 
-update: clean-updated $(BUILDROOT)/.updated
+update: rm-updated $(BUILDROOT)/.updated
 
-clean-updated:
+rm-updated:
 	rm -f $(BUILDROOT)/.updated
 
-$(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf
+clean-updated: rm-updated
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+
+$(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)/dists/$(OUTNAME)/Release),$(BUILDREPO)/dists/$(OUTNAME)/Release)
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	$(if $(DISTCOMPS),,$(error No distribution components are specified))
+	rm -rf $(BUILDROOT)$(INREPODIR)
+	if [ -f $(BUILDREPO)/dists/$(OUTNAME)/Release ]; then \
+	   mkdir $(BUILDROOT)$(INREPODIR); \
+	   cp -a $(BUILDREPO)/dists $(BUILDREPO)/pool \
+		 $(BUILDROOT)$(INREPODIR)/ ; \
+	fi
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
-	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(DISTRO).list' >>$(BUILDROOT)/.host/entry
+	@if [ -d $(BUILDROOT)$(INREPODIR) ]; then \
+	   comps="$$(sed -n -e '/^Components:/ { s/^[^[:space:]]\+[[:space:]]*//p; q }' $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)/Release)"; \
+	   if [ -z "$$comps" ]; then \
+	     echo "No components in $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)" >&2; \
+	     exit 1; \
+	   fi; \
+	   echo "echo \"deb file://$(INREPODIR) $(OUTNAME) $$comps\" >/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	else \
+	   echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
@@ -376,11 +400,11 @@ repo: clean-repo $(BUILDROOT)/.repodone
 $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'rm -rf $(REPODIR)' >>$(BUILDROOT)/.host/entry
-	@echo 'mkdir -p $(REPODIR)/conf' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir -p $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry
 	@echo "archs=\"\$$(cat *.changes | sed -n -e '/^Architecture:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^$$/ d' -e '/^all$$/ d' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry
 	@echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,$$ { s/^[[:space:]]\+[0-9a-f]\+[[:space:]]\+[0-9]\+[[:space:]]\+\([^[:space:]]\+\)\(\/[^[:space:]]\+\)[[:space:]].*$$/\1/p }' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry
-	@echo 'cat <<EOF >$(REPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
+	@echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
 	@echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry
 	@echo 'Label: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
 	@echo 'Codename: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
@@ -390,27 +414,28 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo 'EOF' >>$(BUILDROOT)/.host/entry
 	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
-	@echo '  reprepro -b $(REPODIR) --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
+	@echo '  reprepro -b $(OUTREPODIR) --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
 	@echo 'done' >>$(BUILDROOT)/.host/entry
-	@echo 'chmod -R a+rX $(REPODIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'chmod -R a+rX $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 	rm -rf $(BUILDREPO)
 	mkdir $(BUILDREPO)
-	cp -a $(BUILDROOT)$(REPODIR)/dists \
-	      $(BUILDROOT)$(REPODIR)/pool \
+	cp -a $(BUILDROOT)$(OUTREPODIR)/dists \
+	      $(BUILDROOT)$(OUTREPODIR)/pool \
 	      $(BUILDREPO)/
+	touch $(BUILDREPO)/dists/$(OUTNAME)/Release
 	touch $@
 
 clean-repo:
 	rm -f $(BUILDROOT)/.repodone
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'rm -rf $(REPODIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
 build: buildpkg repo
 rebuild: rebuildpkg repo
 
-.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps build rebuild
+.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo
