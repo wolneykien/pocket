@@ -24,7 +24,7 @@ COMPONENTS =
 
 
 BUILDROOT = buildroot
-
+BUILDREPO = buildrepo
 
 comma:= ,
 empty:=
@@ -371,7 +371,7 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 	touch $(BUILDROOT)/.buildok
 
-makerepo: $(BUILDROOT)/.repodone
+repo: clean-repo $(BUILDROOT)/.repodone
 
 $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
@@ -395,6 +395,11 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo 'chmod -R a+rX $(REPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	rm -rf $(BUILDREPO)
+	mkdir $(BUILDREPO)
+	cp -a $(BUILDROOT)$(REPODIR)/dists \
+	      $(BUILDROOT)$(REPODIR)/pool \
+	      $(BUILDREPO)/
 	touch $@
 
 clean-repo:
@@ -405,7 +410,7 @@ clean-repo:
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
-build: buildpkg makerepo
-rebuild: rebuildpkg makerepo
+build: buildpkg repo
+rebuild: rebuildpkg repo
 
 .PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps build rebuild
