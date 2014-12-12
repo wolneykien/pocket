@@ -296,7 +296,7 @@ $(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to
 
 install: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
-	@echo 'apt-get install -y --no-install-recommends $(PKGS)' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(PKGS)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
@@ -320,7 +320,7 @@ install-buildenv: $(BUILDROOT)/.buildenv
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
-	@echo 'apt-get install -y --no-install-recommends $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
@@ -364,7 +364,7 @@ install-builddeps: $(BUILDROOT)/.builddeps
 $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
-	@echo 'apt-get install -y -f --no-install-recommends' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
