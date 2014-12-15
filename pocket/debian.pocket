@@ -19,12 +19,15 @@
 # Pocket flavour:
 FLAVOUR = debian
 
+# Architecture
+ARCH =
+
 # The list of the pocket components:
 COMPONENTS =
 
 
-BUILDROOT = buildroot
-BUILDREPO = buildrepo
+BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))
+BUILDREPO = buildrepo$(if $(ARCH),-$(ARCH))
 
 comma:= ,
 empty:=
@@ -70,7 +73,7 @@ BUILDPKGLIST += $($(REPO)_EXTRA_PACKAGES)
 
 DEBPATHS = $(BUILDROOT)/.host/debootstrap/debpaths
 
-BUILDROOTTAR = $(REPO)-$(DISTRO).tar.gz
+BUILDROOTTAR = $(REPO)-$(DISTRO)$(if $(ARCH),-$(ARCH)).tar.gz
 BUILDROOTTARDIRS = debootstrap var/cache/apt/archives var/lib/apt/lists
 
 BUSYBOX = /.host/bin/busybox
@@ -184,6 +187,7 @@ $(BUILDROOTTAR):
 	rm -rf $(BUILDROOT)/.host
 	mkdir -p $(BUILDROOT)
 	$(DEBOOTSTRAP) --download-only \
+		       $(if $(ARCH),--arch=$(ARCH)) \
 		       --variant=$(VARIANT) \
 	    $(if $(strip $(SYSPKGLIST)),--include=$(subst $(space),$(comma),$(strip $(SYSPKGLIST)))) \
 	    $(if $(DISTCOMPS),--components=$(subst $(space),$(comma),$(DISTCOMPS))) \
