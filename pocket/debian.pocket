@@ -50,7 +50,7 @@ OUTNAME = local
 RESOLVCONF = /etc/resolv.conf
 
 
-FAKEROOT = /usr/bin/fakeroot-sysv
+FAKEROOT = /usr/bin/fakeroot-sysv $(if $(wildcard $(BUILDROOT)/.fakedata),-i /.fakedata) -s /.fakedata
 SHELL = /bin/bash
 USERSHELL = /bin/bash
 
@@ -142,8 +142,6 @@ $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
 	  >>$(BUILDROOT)/.host/entry
 	@echo '}' >>$(BUILDROOT)/.host/entry
 	@sed -e 's,^\([^[:space:]]\+\)[[:space:]]\+\(.*\)$$,install "\1" "/.host\2" >>/var/lib/dpkg/status,' $(DEBPATHS) >>$(BUILDROOT)/.host/entry
-	@echo 'ln -sf $(FAKEROOT) /usr/bin/fakeroot' >>$(BUILDROOT)/.host/entry
-	@echo 'echo "Installed fakeroot symlink" >&2' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	touch $@
@@ -212,7 +210,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	mkdir -m1777 $(BUILDROOT)/dev/shm
 	touch $@
 
-clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder clean-repo
+clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
 	@echo 'set -e' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry
@@ -230,6 +228,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder clean-repo
 	rm -fv $(BUILDROOT)/.preconfigured
 	rm -fv $(BUILDROOT)/.preinstalled
 	rm -fv $(BUILDROOT)/.extracted
+	rm -fv $(BUILDROOT)/.fakedata
 
 clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 	@if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
@@ -434,6 +433,8 @@ clean-repo:
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	rm -rf $(BUILDREPO)
+	rm -fv $(BUILDROOT)/.updated
 
 build: buildpkg repo
 rebuild: rebuildpkg repo
