@@ -63,6 +63,7 @@ VARIANT = minbase
 BBOXPKG = busybox-static
 SYSPKGLIST = fakeroot $(BBOXPKG) rsync
 BUILDPKGLIST = build-essential devscripts equivs reprepro
+TESTPKGLIST = man
 DPKGX = dpkg -x
 
 REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
@@ -71,6 +72,7 @@ USER_DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%, 
 DISTCOMPS = $(if $(USER_DISTCOMPS),$(USER_DISTCOMPS),$(if $($(REPO)_COMPONENTS),$($(REPO)_COMPONENTS)))
 SYSPKGLIST += $($(REPO)_INITIAL_PACKAGES)
 BUILDPKGLIST += $($(REPO)_EXTRA_PACKAGES)
+TESTPKGLIST += $($(REPO)_EXTRA_PACKAGES)
 
 DEBPATHS = $(BUILDROOT)/.host/debootstrap/debpaths
 
@@ -225,6 +227,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	rm -fv $(BUILDROOT)/.installrepodone
 	rm -fv $(BUILDROOT)/.builddeps
 	rm -fv $(BUILDROOT)/.buildenv
 	rm -fv $(BUILDROOT)/.updated
@@ -445,17 +448,34 @@ clean-repo:
 build: buildpkg repo
 rebuild: rebuildpkg repo
 
-install-repo: $(BUILDROOT)/.repodone
+install-repo: $(INSTALLROOT)/.installrepodone
+
+reinstall-repo: install-clean install-repo
+
+install-clean:
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
-		ARCH=$(ARCH) BUILDROOT=$(INSTALLROOT) \
+		BUILDROOT=$(INSTALLROOT) \
+		clean
+
+$(INSTALLROOT)/.installrepodone: $(BUILDROOT)/.repodone \
+$(BUILDREPO)/dists/$(OUTNAME)/Release
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
+		BUILDROOT=$(INSTALLROOT) \
 		clean
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
-		ARCH=$(ARCH) BUILDROOT=$(INSTALLROOT) \
+		BUILDROOT=$(INSTALLROOT) \
 		update
 	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
 	@echo 'dpkg --unpack -R $(INREPODIR)' >>$(INSTALLROOT)/.host/entry
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
+	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(TESTPKGLIST))' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
+	touch $@
 
-.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo
+install-shell:
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
+		BUILDROOT=$(INSTALLROOT) \
+		shell
+
+.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell
