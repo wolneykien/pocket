@@ -331,7 +331,7 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 $(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy using 'FROM=')))
 
 sync-in: $(BUILDROOT)/.configured
-	rsync -a --inplace $(if $(OVER),,--delete) $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
+	rsync -a --inplace --delete $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rsync -a --inplace $(if $(OVER),,--delete) $(INDIR)/SOURCE ./' >>$(BUILDROOT)/.host/entry
