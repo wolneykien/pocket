@@ -277,7 +277,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	rm -rf $(BUILDROOT)$(INREPODIR)
 	if [ -f $(BUILDREPO)/dists/$(OUTNAME)/Release ]; then \
 	   mkdir $(BUILDROOT)$(INREPODIR); \
-	   cp -a $(BUILDREPO)/dists $(BUILDREPO)/pool \
+	   cp -a $(BUILDREPO)/* \
 		 $(BUILDROOT)$(INREPODIR)/ ; \
 	fi
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
@@ -409,17 +409,22 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
-	@echo 'mkdir -p $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry
-	@echo "archs=\"\$$(cat *.changes | sed -n -e '/^Architecture:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^$$/ d' -e '/^all$$/ d' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry
-	@echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,$$ { s/^[[:space:]]\+[0-9a-f]\+[[:space:]]\+[0-9]\+[[:space:]]\+\([^[:space:]]\+\)\(\/[^[:space:]]\+\)[[:space:]].*$$/\1/p }' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry
-	@echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
-	@echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry
-	@echo 'Label: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
-	@echo 'Codename: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
-	@echo 'Architectures: $$archs' >>$(BUILDROOT)/.host/entry
-	@echo 'Components: $$comps' >>$(BUILDROOT)/.host/entry
-	@echo 'Description: Repository of generated packages' >>$(BUILDROOT)/.host/entry
-	@echo 'EOF' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
+	@if [ -f $(BUILDROOT)$(INREPODIR)/conf/distributions ]; then \
+	   echo 'cp -a $(INREPODIR)/* $(OUTREPODIR)/' >>$(BUILDROOT)/.host/entry; \
+	else \
+	   echo 'mkdir $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry; \
+	   echo "archs=\"\$$(cat *.changes | sed -n -e '/^Architecture:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^$$/ d' -e '/^all$$/ d' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
+	   echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,$$ { s/^[[:space:]]\+[0-9a-f]\+[[:space:]]\+[0-9]\+[[:space:]]\+\([^[:space:]]\+\)\(\/[^[:space:]]\+\)[[:space:]].*$$/\1/p }' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
+	   echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry; \
+	   echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry; \
+	   echo 'Label: $(OUTNAME)' >>$(BUILDROOT)/.host/entry; \
+	   echo 'Codename: $(OUTNAME)' >>$(BUILDROOT)/.host/entry; \
+	   echo 'Architectures: $$archs' >>$(BUILDROOT)/.host/entry; \
+	   echo 'Components: $$comps' >>$(BUILDROOT)/.host/entry; \
+	   echo 'Description: Repository of generated packages' >>$(BUILDROOT)/.host/entry; \
+	   echo 'EOF' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
 	@echo '  reprepro -b $(OUTREPODIR) --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
@@ -429,8 +434,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 	rm -rf $(BUILDREPO)
 	mkdir $(BUILDREPO)
-	cp -a $(BUILDROOT)$(OUTREPODIR)/dists \
-	      $(BUILDROOT)$(OUTREPODIR)/pool \
+	cp -a $(BUILDROOT)$(OUTREPODIR)/* \
 	      $(BUILDREPO)/
 	touch $(BUILDREPO)/dists/$(OUTNAME)/Release
 	touch $@
