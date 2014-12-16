@@ -28,6 +28,7 @@ COMPONENTS =
 
 BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))
 BUILDREPO = buildrepo$(if $(ARCH),-$(ARCH))
+INSTALLROOT = installroot$(if $(ARCH),-$(ARCH))
 
 comma:= ,
 empty:=
@@ -443,5 +444,18 @@ clean-repo:
 
 build: buildpkg repo
 rebuild: rebuildpkg repo
+
+install-repo: $(BUILDROOT)/.repodone
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
+		ARCH=$(ARCH) BUILDROOT=$(INSTALLROOT) \
+		clean
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
+		ARCH=$(ARCH) BUILDROOT=$(INSTALLROOT) \
+		update
+	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
+	@echo 'dpkg --unpack -R $(INREPODIR)' >>$(INSTALLROOT)/.host/entry
+	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
+	@chmod 0755 $(INSTALLROOT)/.host/entry
+	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
 
 .PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo
