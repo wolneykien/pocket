@@ -227,6 +227,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	rm -fv $(BUILDROOT)/.testenv
 	rm -fv $(BUILDROOT)/.installrepodone
 	rm -fv $(BUILDROOT)/.builddeps
 	rm -fv $(BUILDROOT)/.buildenv
@@ -472,12 +473,18 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
 	@echo 'dpkg --unpack -R $(INREPODIR)' >>$(INSTALLROOT)/.host/entry
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
+	@chmod 0755 $(INSTALLROOT)/.host/entry
+	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
+	touch $@
+
+$(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
+	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(TESTPKGLIST))' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
-install-shell:
+install-shell: $(INSTALLROOT)/.testenv
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
 		BUILDROOT=$(INSTALLROOT) \
 		shell
