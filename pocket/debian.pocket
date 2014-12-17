@@ -428,6 +428,9 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	fi
 	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
+	@echo "  srcname=\"\$$(sed -n -e '/^Source:/ { s/^Source:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
+	@echo "  srcver=\"\$$(sed -n -e '/^Version:/ { s/^Version:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
+	@echo '  reprepro -b $(OUTREPODIR) removesrc $(OUTNAME) $$srcname $$srcver' >>$(BUILDROOT)/.host/entry
 	@echo '  reprepro -b $(OUTREPODIR) --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@echo 'chmod -R a+rX $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
