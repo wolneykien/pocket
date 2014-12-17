@@ -403,7 +403,7 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 	touch $(BUILDROOT)/.buildok
 
-repo: clean-repo $(BUILDROOT)/.repodone
+repo: $(BUILDROOT)/.repodone
 
 $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
