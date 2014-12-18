@@ -165,7 +165,7 @@ $(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
 	 fi
 	touch $@
 
-$(BUILDROOT)$(BUSYBOX):
+$(BUILDROOT)$(BUSYBOX): $(DEBPATHS)
 	@ \
 	bb="$$(sed -n -e 's/^$(BBOXPKG)[[:space:]]\+//p' $(DEBPATHS))"; \
 	if [ -n "$$bb" ]; then \
