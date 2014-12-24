@@ -171,6 +171,7 @@ $(BUILDROOT)$(BUSYBOX): $(DEBPATHS)
 	if [ -n "$$bb" ]; then \
 		echo $(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host >&2; \
 		$(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host; \
+		touch $@
 	else \
 		echo "Error: package '$(BBOXPKG)' not found" >&2; \
 		exit 1; \
