@@ -266,10 +266,12 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 update: rm-updated $(BUILDROOT)/.updated
 
 rm-updated:
-	rm -fv $(BUILDROOT)/.updated
-	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
-	@echo 'rm -fv /etc/resolv.conf' >>$(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	@if [ -e $(BUILDROOT)/.updated ]; then \
+	  rm -fv $(BUILDROOT)/.updated;\
+	  echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry; \
+	  echo 'rm -fv /etc/resolv.conf' >>$(BUILDROOT)/.host/entry; \
+	  $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry; \
+	fi
 
 clean-updated: rm-updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
