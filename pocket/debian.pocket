@@ -319,7 +319,7 @@ install: $(BUILDROOT)/.updated
 
 shell: $(BUILDROOT)/.configured
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
-	@if [ "$(USER)" = '$(ROOTER)' ]; then \
+	@if [ "$(ROLE)" = '$(ROOTER)' ]; then \
 	   echo "export TMPDIR='/tmp'" >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd "/root"' >>$(BUILDROOT)/.host/entry; \
 	   echo '$(USERSHELL)' >>$(BUILDROOT)/.host/entry; \
