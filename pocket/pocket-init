@@ -39,7 +39,10 @@ cat <<EOF
 
   -F, --avail-flavours              list the available pocket
                                     flavours and exit;
-  -a ARCH,--arch=ARCH               target architecture;
+  -a ARCH, --arch=ARCH               target architecture;
+
+  -n NUM, --num=NUM                 set the subconfiguration number to
+                                    NUM;
 
   -u, --update                      update the existing $POCKETFILE.
 
@@ -47,10 +50,10 @@ EOF
     exit 0
 }
 
-OPTS=`getopt -n $PROG -o q,v,V,h,c:,f:,F,a:,u -l quiet,verbose,version,help,config:,flavour:,avail-flavours,arch:,update -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
+OPTS=`getopt -n $PROG -o q,v,V,h,c:,f:,F,a:,n:,u -l quiet,verbose,version,help,config:,flavour:,avail-flavours,arch:,num:,update -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
 eval set -- "$OPTS"
 
-quiet=; verbose=; config=; flavour=; arch=; update=
+quiet=; verbose=; config=; flavour=; arch=; update=; num=
 while :; do
     case "$1" in
     -q|--quiet) quiet=-q;;
@@ -61,6 +64,7 @@ while :; do
     -f|--flavour) shift; flavour="$1";;
     -F|avail-flavours) do_print_flavours;;
     -a|--arch) shift; arch="$1";;
+    -n|--num) shift; num="$1";;
     -u|--update) update=-u;;
     --) shift; break;;
     *)
@@ -122,6 +126,7 @@ else
         write_error "Warning: the flavour isn't updated\\n"
 fi
 
+set_config_val "$pocketfile" NUM "$num"
 set_config_val "$pocketfile" ARCH "$arch"
 set_config_val "$pocketfile" COMPONENTS "$*"
 

@@ -19,6 +19,9 @@
 # Pocket flavour:
 FLAVOUR = debian
 
+# Subconfig number:
+NUM =
+
 # Architecture
 ARCH =
 
@@ -35,13 +38,13 @@ empty:=
 space:= $(empty) $(empty)
 
 HSHPRIVDIR = /usr/lib/hasher-priv
-MAKEDEV = $(HSHPRIVDIR)/makedev.sh
-USER_A = $(addsuffix _a, $(USER))
-USER_B = $(addsuffix _b, $(USER))
-RUN_A = $(HSHPRIVDIR)/chrootuid1.sh
-RUN_B = $(HSHPRIVDIR)/chrootuid2.sh
-GETUGID_A = $(HSHPRIVDIR)/getugid1.sh
-GETUGID_B = $(HSHPRIVDIR)/getugid2.sh
+MAKEDEV = $(HSHPRIVDIR)/makedev.sh -$(NUM)
+USER_A = $(addsuffix _a$(NUM), $(USER))
+USER_B = $(addsuffix _b$(NUM), $(USER))
+RUN_A = $(HSHPRIVDIR)/chrootuid1.sh -$(NUM)
+RUN_B = $(HSHPRIVDIR)/chrootuid2.sh -$(NUM)
+GETUGID_A = $(HSHPRIVDIR)/getugid1.sh -$(NUM)
+GETUGID_B = $(HSHPRIVDIR)/getugid2.sh -$(NUM)
 ROOTER = rooter
 BUILDER = builder
 BUILDER_HOME = /usr/src
@@ -171,7 +174,7 @@ $(BUILDROOT)$(BUSYBOX): $(DEBPATHS)
 	if [ -n "$$bb" ]; then \
 		echo $(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host >&2; \
 		$(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host; \
-		touch $@
+		touch $@; \
 	else \
 		echo "Error: package '$(BBOXPKG)' not found" >&2; \
 		exit 1; \
