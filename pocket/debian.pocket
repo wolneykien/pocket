@@ -277,6 +277,10 @@ clean-updated: rm-updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
@@ -304,6 +308,10 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	else \
 	   echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry; \
 	fi
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
@@ -313,6 +321,10 @@ $(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to
 
 install: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(PKGS)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
@@ -337,6 +349,10 @@ install-buildenv: $(BUILDROOT)/.buildenv
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
@@ -382,6 +398,10 @@ install-builddeps: $(BUILDROOT)/.builddeps
 $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
@@ -484,6 +504,10 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 		update
 	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
 	@echo 'dpkg --unpack -R $(INREPODIR)' >>$(INSTALLROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
@@ -491,6 +515,10 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 
 $(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
 	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(TESTPKGLIST))' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
