@@ -276,6 +276,9 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	mkdir -m1777 $(BUILDROOT)/dev/shm
 	touch $@
 
+##
+## * `clean`    Cleans the buildroot making it necessary to
+## `bootstrap` again.
 clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
 	@echo 'set -e' >>$(BUILDROOT)/.host/entry
@@ -298,6 +301,9 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	rm -fv $(BUILDROOT)/.extracted
 	rm -fv $(BUILDROOT)/.fakedata
 
+##
+## * `clean-builder`    Cleans the home directory of the user
+## 'builder'.
 clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 	@if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
 	   echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
@@ -318,6 +324,9 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	@echo "Setting up $(BUILDROOT)/etc/resolv.conf" >&2
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 
+##
+## * `update`    Calls `apt-get update` to refresh the set of known
+## packages.
 update: rm-updated $(BUILDROOT)/.updated
 
 rm-updated:
@@ -328,14 +337,13 @@ rm-updated:
 	  $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry; \
 	fi
 
-clean-updated: rm-updated
+##
+## * `clean-cache`    Cleans the apt's cache: makes no package
+## available.
+clean-cache: rm-updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
-	@if [ -n "$$http_proxy" ]; then \
-	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
-	 fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
@@ -374,6 +382,9 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 
 $(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to install using 'PKGS=')))
 
+##
+## * `install`    Installs the given packages into the buildroot. The
+## package names are specified with the `PKGS=` parameter.
 install: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
@@ -384,6 +395,10 @@ install: $(BUILDROOT)/.updated
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
+##
+## * `shell`    Invoke the command shell inside the chroot. The
+## optional parameter `ROLE=rooter` can be used to obtain root
+## privileges.
 shell: $(BUILDROOT)/.configured
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
 	@if [ "$(ROLE)" = '$(ROOTER)' ]; then \
@@ -609,4 +624,4 @@ doc:
 	sed -e 's/ \(===\+\)$$/\n\1/' \
 	    -e 's/ \(---\+\)$$/\n\1/'
 
-.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc
+.PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc
