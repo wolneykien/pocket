@@ -16,6 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# Customization section
+# ---------------------
+
 # Pocket flavour:
 FLAVOUR = debian
 
@@ -28,6 +31,36 @@ ARCH =
 # The list of the pocket components:
 COMPONENTS =
 
+# hasher-priv directory:
+HSHPRIVDIR = /usr/lib/hasher-priv
+
+# system resolv.conf file:
+RESOLVCONF = /etc/resolv.conf
+
+# debootstrap program:
+DEBOOTSTRAP = /usr/sbin/debootstrap
+
+# What to use for `dpkg -x`:
+DPKGX = dpkg -x
+
+# Distro variant:
+VARIANT = minbase
+
+# BisyBox package name:
+BBOXPKG = busybox-static
+
+# Additional packages in the base system:
+SYSPKGLIST = fakeroot $(BBOXPKG) rsync
+
+# Build system packages:
+BUILDPKGLIST = build-essential devscripts equivs reprepro
+
+# Test-root additional packages:
+TESTPKGLIST = man
+
+
+# Essential variables
+# -------------------
 
 BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))
 BUILDREPO = buildrepo$(if $(ARCH),-$(ARCH))
@@ -37,7 +70,6 @@ comma:= ,
 empty:=
 space:= $(empty) $(empty)
 
-HSHPRIVDIR = /usr/lib/hasher-priv
 MAKEDEV = $(HSHPRIVDIR)/makedev.sh $(if $(NUM),-$(NUM))
 USER_A = $(addsuffix _a$(NUM), $(USER))
 USER_B = $(addsuffix _b$(NUM), $(USER))
@@ -54,20 +86,13 @@ OUTDIR = /.out
 OUTREPODIR = $(OUTDIR)/repo
 OUTNAME = local
 
-RESOLVCONF = /etc/resolv.conf
-
-
 FAKEROOT = /usr/bin/fakeroot-sysv $(if $(wildcard $(BUILDROOT)/.fakedata),-i /.fakedata) -s /.fakedata
 SHELL = /bin/bash
 USERSHELL = /bin/bash
 
-DEBOOTSTRAP = /usr/sbin/debootstrap
-VARIANT = minbase
-BBOXPKG = busybox-static
-SYSPKGLIST = fakeroot $(BBOXPKG) rsync
-BUILDPKGLIST = build-essential devscripts equivs reprepro
-TESTPKGLIST = man
-DPKGX = dpkg -x
+
+# Repository and distro configuration
+# -----------------------------------
 
 REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
 DISTRO = $(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%, $(COMPONENTS))))))
@@ -77,6 +102,10 @@ SYSPKGLIST += $($(REPO)_INITIAL_PACKAGES)
 BUILDPKGLIST += $($(REPO)_EXTRA_PACKAGES)
 TESTPKGLIST += $($(REPO)_EXTRA_PACKAGES)
 
+
+# Buildroot layout
+# ----------------
+
 DEBPATHS = $(BUILDROOT)/.host/debootstrap/debpaths
 
 BUILDROOTTAR = $(REPO)-$(DISTRO)$(if $(ARCH),-$(ARCH)).tar.gz
@@ -85,7 +114,29 @@ BUILDROOTTARDIRS = debootstrap var/cache/apt/archives var/lib/apt/lists
 BUSYBOX = /.host/bin/busybox
 APTARCHIVES = /var/cache/apt/archives
 
+## Pocketfile Debian
+## =================
 
+##
+## Use `sync-in` then `build` to build the debian package from
+## source code. Use `shell` for shell. Brief help page is accessible
+## with `help` and a little more detailed manual with `doc` and
+## `doc SUBJ=<subject>` actions.
+
+##
+## Targets (actions)
+## -----------------
+
+##
+## * `bootstrap`  Sets up a minimal Debian system in the buildroot.
+## When is called for the first time, `bootstrap` uses `debootstrap`
+## to download the required set of packages, saving them into
+## `<repo>-<distro>-<arch>.tar.gz` tarball for future use. Downloaded
+## packages are then installed and configured. On the successful
+## finish of the action the minimal system inside `buildroot` chroot
+## is ready for use with other actions, such as `shell` and `build`.
+## Most of the targets depends on `bootstrap` calling it automatically
+## when the buildroot isn't ready.
 bootstrap: $(BUILDROOT)/.configured
 
 $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
@@ -180,6 +231,10 @@ $(BUILDROOT)$(BUSYBOX): $(DEBPATHS)
 		exit 1; \
 	fi
 
+##
+## * `download`  Downloads the set of packages required by the minimal
+## system. It uses `debootstrap` to get the packages. The result is
+## saved into `<repo>-<distro>-<arch>.tar.gz` tarball.
 download: $(BUILDROOTTAR)
 extract: $(DEBPATHS)
 
@@ -529,4 +584,29 @@ install-shell: $(INSTALLROOT)/.testenv
 		BUILDROOT=$(INSTALLROOT) \
 		shell
 
-.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell
+docextract:
+	@echo
+	@sed -n -e '$$ { x; s/^\n//; s/\n/ /g; p }' \
+               -e '/^##/! d' \
+               -e 's/^##//' \
+               -e 's/^ //' \
+               -e '/^===/ { x; s/^\n//; s/\n/ /g; p; d }' \
+               -e '/^---/ { x; s/^\n//; s/\n/ /g; p; d }' \
+               -e '/^$$/ { x; s/^\n//; s/\n/ /g; p; x; p; x; d }' \
+               -e 'H' \
+	       $(firstword $(MAKEFILE_LIST))
+
+help:
+	@$(MAKE) -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
+	sed -e '/^[[:space:]]*\*[[:space:]]/ s/\..*$$/./' | \
+	fmt -w $$(tput cols) | \
+	sed -e 's/ \(===\+\)$$/\n\1/' \
+	    -e 's/ \(---\+\)$$/\n\1/'
+
+doc:
+	@$(MAKE) -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
+	fmt -w $$(tput cols) | \
+	sed -e 's/ \(===\+\)$$/\n\1/' \
+	    -e 's/ \(---\+\)$$/\n\1/'
+
+.PHONY: bootstrap download extract clean clean-updated update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc
