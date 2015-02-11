@@ -128,15 +128,16 @@ APTARCHIVES = /var/cache/apt/archives
 ## -----------------
 
 ##
-## * `bootstrap`  Sets up a minimal Debian system in the buildroot.
+## * `bootstrap`  Set up a minimal Debian system in the buildroot.
 ## When is called for the first time, `bootstrap` uses `debootstrap`
 ## to download the required set of packages, saving them into
-## `<repo>-<distro>-<arch>.tar.gz` tarball for future use. Downloaded
-## packages are then installed and configured. On the successful
-## finish of the action the minimal system inside `buildroot` chroot
-## is ready for use with other actions, such as `shell` and `build`.
-## Most of the targets depends on `bootstrap` calling it automatically
-## when the buildroot isn't ready.
+## `<repo>-<distro>-<arch>.tar.gz` tarball for future use. All of the
+## downloaded packages are then installed and configured. On the
+## successful  finish of the action the minimal system inside
+## `buildroot` chroot is ready for use with other actions, such as
+## `shell` and `build`. Most of the targets depends on `bootstrap`
+## calling it automatically when the buildroot isn't ready. See the
+## `download` action for more information.
 bootstrap: $(BUILDROOT)/.configured
 
 $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
@@ -232,9 +233,14 @@ $(BUILDROOT)$(BUSYBOX): $(DEBPATHS)
 	fi
 
 ##
-## * `download`  Downloads the set of packages required by the minimal
-## system. It uses `debootstrap` to get the packages. The result is
-## saved into `<repo>-<distro>-<arch>.tar.gz` tarball.
+## * `download`  Download the set of packages required by the minimal
+## system. The action uses `debootstrap` to get the packages saving
+## the result into `<repo>-<distro>-<arch>.tar.gz` tarball. Additional
+## packages are included in the minimal system: fakeroot,
+## busybox-static, rsync. More packages can specified for download
+## with the `<distro>_INITIAL_PACKAGES` configuration file variable.
+##  See `show-config` action and `pocket-init` help page for more
+## information.
 download: $(BUILDROOTTAR)
 extract: $(DEBPATHS)
 
@@ -277,7 +283,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	touch $@
 
 ##
-## * `clean`    Cleans the buildroot making it necessary to
+## * `clean`    Clean the buildroot making it necessary to
 ## `bootstrap` again.
 clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
@@ -302,8 +308,8 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	rm -fv $(BUILDROOT)/.fakedata
 
 ##
-## * `clean-builder`    Cleans the home directory of the user
-## 'builder'.
+## * `clean-builder`    Clean the home directory of the user
+## 'builder' (/usr/src).
 clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 	@if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
 	   echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
@@ -325,7 +331,7 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 
 ##
-## * `update`    Calls `apt-get update` to refresh the set of known
+## * `update`    Call `apt-get update` to refresh the set of known
 ## packages.
 update: rm-updated $(BUILDROOT)/.updated
 
@@ -338,7 +344,7 @@ rm-updated:
 	fi
 
 ##
-## * `clean-cache`    Cleans the apt's cache: makes no package
+## * `clean-cache`    Clean the apt's cache: makes no package
 ## available.
 clean-cache: rm-updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
@@ -383,7 +389,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 $(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to install using 'PKGS=')))
 
 ##
-## * `install`    Installs the given packages into the buildroot. The
+## * `install`    Install the given packages into the buildroot. The
 ## package names are specified with the `PKGS=` parameter.
 install: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
@@ -415,6 +421,15 @@ shell: $(BUILDROOT)/.configured
 	fi; \
 	exit 0
 
+##
+## * `install-buildenv`    Install the build environment packages
+## inside the buildroot. The following set of packages are installed
+## by default: build-essential, devscripts, equivs, reprepro.
+## Additional packages are configured with the
+## `<distro>_EXTRA_PACKAGES` configuration file variable. See
+## `show-config` action and `pocket-init` help page for more
+## information. This target is invoked automatically by the `build`,
+## `rebuild` and similar targets.
 install-buildenv: $(BUILDROOT)/.buildenv
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
@@ -428,8 +443,17 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
-$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy using 'FROM=')))
+$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
 
+##
+## * `sync-in`    Synchronize the buildroot package source directory
+## FROM the given directory outside the buildroot. By default, after
+## the action the buildroot package source directory /usr/src/SOURCE
+## is identical to the directory given in the `FROM=<path>` parameter.
+## The existing files that are not present in the FROM directory *are
+## removed*. However, with the optional parameter `OVER=yes` the
+## files are just copied over the existing ones and no files are
+## deleted.
 sync-in: $(BUILDROOT)/.configured
 	rsync -a --inplace --delete $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
@@ -438,11 +462,21 @@ sync-in: $(BUILDROOT)/.configured
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
-$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into using 'TO=')))
+$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into with 'TO=')))
 
+##
+## * `sync-out`    Copy the package source from the buildroot INTO
+## the given directory. Files from the package source directory
+## /usr/src/SOURCE are copied into the diretory given with the
+## parameter `TO=<path>`.
 sync-out: $(BUILDROOT)/.configured
 	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(TO)
 
+##
+## * `make-depspkg`    Prepare the special meta-package to install the
+## build reqisites (dependencies). See the `install-builddeps` action
+## for more information. The resulting meta package is placed into the
+## builder home /usr/src.
 make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 
 $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
@@ -463,6 +497,12 @@ $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
+##
+## * `install-builddeps`    Install the packages that are required
+## to build the target package from the source code. Installs all the
+## packages, specified in the `Build-Depends` control file field.
+## This procedure is supported by the special meta-package that is
+## prepared by the (automatically called) `make-depspkg` action.
 install-builddeps: $(BUILDROOT)/.builddeps
 
 $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
