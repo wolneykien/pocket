@@ -132,10 +132,10 @@ APTARCHIVES = /var/cache/apt/archives
 ## When is called for the first time, `bootstrap` uses `debootstrap`
 ## to download the required set of packages, saving them into
 ## `<repo>-<distro>-<arch>.tar.gz` tarball for future use. All of the
-## downloaded packages are then installed and configured. On the
-## successful  finish of the action the minimal system inside
+## downloaded packages are then installed and configured.
+## On successful  finish of the action the minimal system inside
 ## `buildroot` chroot is ready for use with other actions, such as
-## `shell` and `build`. Most of the targets depends on `bootstrap`
+## `shell` and `build`. Most of the targets depend on `bootstrap`
 ## calling it automatically when the buildroot isn't ready. See the
 ## `download` action for more information.
 bootstrap: $(BUILDROOT)/.configured
@@ -573,7 +573,8 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ## the `buildrepo` directory near the `buildroot` one. The `buildrepo`
 ## repository accumulates all successful builds: new packages are
 ## included and the existing ones are updated. This accumulation
-## system provides the base for incremental builds.
+## system provides the base for incremental builds. The action is
+## callled automatically by the `build` and `rebuild` actions.
 repo: $(BUILDROOT)/.repodone
 
 $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
@@ -613,6 +614,8 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	touch $(BUILDREPO)/dists/$(OUTNAME)/Release
 	touch $@
 
+##
+## * `clean-repo`    Completely remove the `buildrepo` directory.
 clean-repo:
 	rm -f $(BUILDROOT)/.repodone
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
@@ -623,7 +626,16 @@ clean-repo:
 	rm -rf $(BUILDREPO)
 	rm -fv $(BUILDROOT)/.updated
 
+##
+## * `build`    Start or continue building the Debian package from
+## source and import the result into the `buildrepo` repository.
+## Calls `buildpkg`, then `repo`.
 build: buildpkg repo
+
+##
+## * `rebuild`    Make the full build of the Debian package from
+## source and import the result into the `buildrepo` repository.
+## Calls `rebuildpkg`, then `repo`.
 rebuild: rebuildpkg repo
 
 install-repo: $(INSTALLROOT)/.installrepodone
