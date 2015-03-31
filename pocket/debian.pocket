@@ -409,7 +409,7 @@ install: $(BUILDROOT)/.updated
 ##
 ## * `shell`    Invoke the command shell inside the chroot. The
 ## optional parameter `ROLE=rooter` can be used to obtain root
-## privileges.
+## privileges. To get network access pass `SHARE_NETWORK=yes`.
 shell: $(BUILDROOT)/.configured
 	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
 	@if [ "$(ROLE)" = '$(ROOTER)' ]; then \
@@ -616,10 +616,9 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 
 ##
 ## * `clean-repo`    Completely remove the `buildrepo` directory.
-clean-repo:
+clean-repo: $(BUILDROOT)/.configured
 	rm -f $(BUILDROOT)/.repodone
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
-	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
