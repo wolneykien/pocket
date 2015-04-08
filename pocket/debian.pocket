@@ -657,8 +657,8 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
 	@echo 'dpkg --unpack -R $(INREPODIR)' >>$(INSTALLROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
-	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export http_proxy='$$http_proxy'" >>$(INSTALLROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(INSTALLROOT)/.host/entry; \
 	 fi
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
@@ -668,8 +668,8 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 $(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
 	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
-	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export http_proxy='$$http_proxy'" >>$(INSTALLROOT)/.host/entry; \
+	   echo "export no_proxy='$no_proxy'" >>$(INSTALLROOT)/.host/entry; \
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(TESTPKGLIST))' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
