@@ -391,12 +391,11 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	touch $(BUILDROOT)/.updated
 
-$(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to install using 'PKGS=')))
-
 ##
 ## * `install`    Install the given packages into the buildroot. The
 ## package names are specified with the `PKGS=` parameter.
 install: $(BUILDROOT)/.updated
+	$(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to install using 'PKGS=')))
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -448,8 +447,6 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
-$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
-
 ##
 ## * `sync-in`    Synchronize the buildroot package source directory
 ## FROM the given directory outside the buildroot. By default, after
@@ -460,6 +457,7 @@ $(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package
 ## files are just copied over the existing ones and no files are
 ## deleted.
 sync-in: $(BUILDROOT)/.configured
+	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
 	rsync -a --inplace --delete $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -467,14 +465,13 @@ sync-in: $(BUILDROOT)/.configured
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
-$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into with 'TO=')))
-
 ##
 ## * `sync-out`    Copy the package source from the buildroot INTO
 ## the given directory. Files from the package source directory
 ## /usr/src/SOURCE are copied into the diretory given with the
 ## parameter `TO=<path>`.
 sync-out: $(BUILDROOT)/.configured
+	$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into with 'TO=')))
 	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(TO)
 
 ##
@@ -681,6 +678,13 @@ install-shell: $(INSTALLROOT)/.testenv
 		BUILDROOT=$(INSTALLROOT) \
 		shell
 
+
+# Documentation processing
+# ------------------------
+
+SUBJFILTER = sed -n -e '/^\*[[:space:]]\+\`$(SUBJ)\`/,/^[[:space:]]*$$/ { /^[[:space:]]*$$/ { q 0 }; p }' -e '$$ q 1'
+FILTER = $(if $(SUBJ),$(SUBJFILTER),cat)
+
 docextract:
 	@echo
 	@sed -n -e '$$ { x; s/^\n//; s/\n/ /g; p }' \
@@ -698,12 +702,13 @@ help:
 	sed -e '/^[[:space:]]*\*[[:space:]]/ s/\..*$$/./' | \
 	fmt -w $$(tput cols) | \
 	sed -e 's/ \(===\+\)$$/\n\1/' \
-	    -e 's/ \(---\+\)$$/\n\1/'
-
+	    -e 's/ \(---\+\)$$/\n\1/' | \
+	eval "$(FILTER)"
 doc:
 	@$(MAKE) -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
 	fmt -w $$(tput cols) | \
 	sed -e 's/ \(===\+\)$$/\n\1/' \
-	    -e 's/ \(---\+\)$$/\n\1/'
+	    -e 's/ \(---\+\)$$/\n\1/' | \
+	eval "$(FILTER)"
 
 .PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc
