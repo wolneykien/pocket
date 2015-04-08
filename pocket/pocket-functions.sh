@@ -71,10 +71,10 @@ find_config()
     local name="${1:-$DEFCONFNAME}"
     local config=
 
-    if [ -f "./$name" ]; then
-        echo "./$name"
-        return 0
-    fi
+    #if [ -f "./$name" ]; then
+    #    echo "./$name"
+    #    return 0
+    #fi
 
     config="${USERCONFDIR%/}/$name"
     if [ -f "$config" ]; then
