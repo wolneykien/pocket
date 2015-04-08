@@ -39,7 +39,8 @@ cat <<EOF
 
   -F, --avail-flavours              list the available pocket
                                     flavours and exit;
-  -a ARCH, --arch=ARCH               target architecture;
+
+  -a ARCH, --arch=ARCH              target architecture;
 
   -n NUM, --num=NUM                 set the subconfiguration number to
                                     NUM;
