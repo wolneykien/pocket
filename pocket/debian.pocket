@@ -51,6 +51,7 @@ BBOXPKG = busybox-static
 
 # Additional packages in the base system:
 SYSPKGLIST = fakeroot $(BBOXPKG) rsync
+NOSYSPKGLIST =
 
 # Build system packages:
 BUILDPKGLIST = build-essential devscripts equivs reprepro
@@ -98,9 +99,10 @@ REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
 DISTRO = $(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%, $(COMPONENTS))))))
 USER_DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%, $(COMPONENTS)))
 DISTCOMPS = $(if $(USER_DISTCOMPS),$(USER_DISTCOMPS),$(if $($(REPO)_COMPONENTS),$($(REPO)_COMPONENTS)))
-SYSPKGLIST += $($(REPO)_INITIAL_PACKAGES)
-BUILDPKGLIST += $($(REPO)_EXTRA_PACKAGES)
-TESTPKGLIST += $($(REPO)_EXTRA_PACKAGES)
+SYSPKGLIST += $(if $($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_INITIAL_PACKAGES))
+NOSYSPKGLIST += $(if $($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_EXCLUDE_PACKAGES))
+BUILDPKGLIST += $(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES))
+TESTPKGLIST += $(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES))
 
 
 # Buildroot layout
@@ -236,16 +238,26 @@ $(BUILDROOT)$(BUSYBOX): $(DEBPATHS)
 ## * `download`  Download the set of packages required by the minimal
 ## system. The action uses `debootstrap` to get the packages saving
 ## the result into `<repo>-<distro>-<arch>.tar.gz` tarball. Additional
-## packages are included in the minimal system: fakeroot,
-## busybox-static, rsync. More packages can specified for download
+## packages are included in the minimal system: `fakeroot`,
+## `busybox-static`, `rsync`. More packages can specified for download
 ## with the `<distro>_INITIAL_PACKAGES` configuration file variable.
-##  See `show-config` action and `pocket-init` help page for more
+##   See `show-config` action and `pocket-init` help page for more
 ## information.
 download: $(BUILDROOTTAR)
 extract: $(DEBPATHS)
 
 $(DEBPATHS): $(BUILDROOTTAR) $(BUILDROOT)/.stamp
 	tar xpf $(BUILDROOTTAR) -C $(BUILDROOT)/.host
+	if [ -n "$(strip $(NOSYSPKGLIST))" ]; then \
+	    echo "$(strip $(NOSYSPKGLIST))" | \
+	        sed -e 's/[ \t]\+/\n/g' | \
+	        sed -e 's,^.*$$,^&[[:space:]],' \
+		  >"$@.exclude"; \
+	    if [ -s "$@.exclude" ]; then \
+	        grep -v -f "$@.exclude" "$@" >"$@.new"; \
+		mv "$@.new" "$@"; \
+	    fi; \
+	fi
 	touch $@
 
 $(BUILDROOTTAR):
@@ -258,6 +270,7 @@ $(BUILDROOTTAR):
 		       $(if $(ARCH),--arch=$(ARCH)) \
 		       --variant=$(VARIANT) \
 	    $(if $(strip $(SYSPKGLIST)),--include=$(subst $(space),$(comma),$(strip $(SYSPKGLIST)))) \
+	    $(if $(strip $(NOSYSPKGLIST)),--exclude=$(subst $(space),$(comma),$(strip $(NOSYSPKGLIST)))) \
 	    $(if $(DISTCOMPS),--components=$(subst $(space),$(comma),$(DISTCOMPS))) \
 		$(DISTRO) $(BUILDROOT)/.host $($(REPO)_MIRROR)
 	tar cpf $@ -C $(BUILDROOT)/.host $(BUILDROOTTARDIRS)
@@ -428,7 +441,7 @@ shell: $(BUILDROOT)/.configured
 ##
 ## * `install-buildenv`    Install the build environment packages
 ## inside the buildroot. The following set of packages are installed
-## by default: build-essential, devscripts, equivs, reprepro.
+## by default: `build-essential`, `devscripts`, `equivs`, `reprepro`.
 ## Additional packages are configured with the
 ## `<distro>_EXTRA_PACKAGES` configuration file variable. See
 ## `show-config` action and `pocket-init` help page for more
