@@ -59,6 +59,9 @@ BUILDPKGLIST = build-essential devscripts equivs reprepro
 # Test-root additional packages:
 TESTPKGLIST = man
 
+# Skip patterns for the `sync-in` target
+SKIPSYNC = .git* .svn*
+
 
 # Essential variables
 # -------------------
@@ -469,14 +472,32 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 ## removed*. However, with the optional parameter `OVER=yes` the
 ## files are just copied over the existing ones and no files are
 ## deleted.
+##   If the package source format isn't "native", then the
+## corresponding `.orig.tar.gz` is written of the source tree (OVER
+## mode disables this).
 sync-in: $(BUILDROOT)/.configured
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
-	rsync -a --inplace --delete $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
+	rsync -a --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'OVER=$(OVER)' >>$(BUILDROOT)/.host/entry
+	@echo 'case "$$OVER" in 0|no|NO|false|FALSE) OVER=;; esac' >>$(BUILDROOT)/.host/entry
+	@echo 'DELETE=' >>$(BUILDROOT)/.host/entry
+	@echo '[ -n "$$OVER" ] || DELETE=--delete' >>$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'rsync -a --inplace $(if $(OVER),,--delete) $(INDIR)/SOURCE ./' >>$(BUILDROOT)/.host/entry
+	@echo 'rsync -a --inplace $$DELETE $(INDIR)/SOURCE ./' >>$(BUILDROOT)/.host/entry
+	@echo 'if [ -z "$$OVER" ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '    cd SOURCE' >>$(BUILDROOT)/.host/entry
+	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
+	@echo '        tar czf ../$$(dpkg-parsechangelog -S Source)_$$(dpkg-parsechangelog -S Version | sed -e "s/-.*\$$//").orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
+	@echo '    fi' >>$(BUILDROOT)/.host/entry
+	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	find $(BUILDROOT)$(BUILDER_HOME) -maxdepth 1 -type f -name '*.orig.tar.gz' | \
+	    while read fn; do \
+	        cp -fv "$$fn" $(BUILDROOT)$(INDIR)/; \
+	    done
 
 ##
 ## * `sync-out`    Copy the package source from the buildroot INTO
@@ -568,7 +589,7 @@ buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ## but calls `dpkg-buildpackage` without `-nc` option starting the
 ## build procedure from its very beginning. This is an intermediate
 ## action usually called by `rebuild`.
-rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
+rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg copyorigtar
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
@@ -576,6 +597,15 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 	touch $(BUILDROOT)/.buildok
+
+copyorigtar:
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'find $(INDIR) -maxdepth 1 -type f -name "*.orig.tar.gz" | ' >>$(BUILDROOT)/.host/entry
+	@echo '    while read fn; do' >>$(BUILDROOT)/.host/entry
+	@echo '        cp -fv "$$fn" $(BUILDER_HOME)/' >>$(BUILDROOT)/.host/entry
+	@echo '    done' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `repo`    Import the freshly built package into the package
