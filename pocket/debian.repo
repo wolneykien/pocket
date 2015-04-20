@@ -1,4 +1,5 @@
 
+# Debian main
 debian_MIRROR = http://ftp.debian.org/debian
 debian_DISTRO = stable
 debian_COMPONENTS = main contrib
@@ -8,3 +9,7 @@ debian_EXTRA_PACKAGES = less vim-nox bsdmainutils
 # No systemd in Jessie
 debian_jessie_INITIAL_PACKAGES = $(debian_INITIAL_PACKAGES) sysvinit sysvinit-core
 debian_jessie_EXCLUDE_PACKAGES = systemd-sysv systemd upstart
+
+# Cross-building in Jessie
+debian_jessie_CROSS_MIRROR = http://emdebian.org/tools/debian
+debian_jessie_CROSS_COMPONENTS = main extra

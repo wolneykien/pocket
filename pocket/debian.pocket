@@ -62,6 +62,9 @@ TESTPKGLIST = man
 # Skip patterns for the `sync-in` target
 SKIPSYNC = .git* .svn*
 
+# Cross-build environment
+CROSSBUILDPKGLIST = dpkg-cross crossbuild-essential-$(TARGET)
+
 
 # Essential variables
 # -------------------
@@ -394,18 +397,40 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	     echo "No components in $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)" >&2; \
 	     exit 1; \
 	   fi; \
-	   echo "echo \"deb file://$(INREPODIR) $(OUTNAME) $$comps\" >/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   for a in $$(sed -n -e '/^Architectures:/ { s/^[^[:space:]]\+[[:space:]]*//p; q }' $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)/Release); do \
+	       echo "echo \"deb [arch=$$a] file://$(INREPODIR) $(OUTNAME) $$comps\" >/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   done; \
 	else \
 	   echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	 fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
-	touch $(BUILDROOT)/.updated
+	touch $@
+
+$(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
+	$(if $(TARGET),,$(error Target architecture is not specified))
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'if [ "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
+	@if [ -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
+	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
+	else \
+	    echo '    rm -fv /etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
+	fi
+	@echo '    dpkg --add-architecture $(TARGET)' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
+	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	touch $@
 
 ##
 ## * `install`    Install the given packages into the buildroot. The
@@ -415,7 +440,7 @@ install: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(PKGS)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
@@ -450,15 +475,30 @@ shell: $(BUILDROOT)/.configured
 ## `show-config` action and `pocket-init` help page for more
 ## information. This target is invoked automatically by the `build`,
 ## `rebuild` and similar targets.
-install-buildenv: $(BUILDROOT)/.buildenv
+install-buildenv: $(BUILDROOT)/.buildenv $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET))
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	touch $@
+
+$(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$(TARGET)
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	 fi
+	@if [ -n "$(TARGET)" ]; then \
+	    echo 'if [ "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry; \
+	    echo '    apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(CROSSBUILDPKGLIST))' >>$(BUILDROOT)/.host/entry; \
+	    echo 'fi' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
@@ -548,7 +588,7 @@ $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	 fi
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
@@ -700,7 +740,7 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	@echo 'dpkg --unpack -R $(INREPODIR)' >>$(INSTALLROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(INSTALLROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(INSTALLROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(INSTALLROOT)/.host/entry; \
 	 fi
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
@@ -711,7 +751,7 @@ $(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
 	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(INSTALLROOT)/.host/entry; \
-	   echo "export no_proxy='$no_proxy'" >>$(INSTALLROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(INSTALLROOT)/.host/entry; \
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(TESTPKGLIST))' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
