@@ -536,10 +536,6 @@ sync-in: $(BUILDROOT)/.configured
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
-	find $(BUILDROOT)$(BUILDER_HOME) -maxdepth 1 -type f -name '*.orig.tar.gz' | \
-	    while read fn; do \
-	        cp -fv "$$fn" $(BUILDROOT)$(INDIR)/; \
-	    done
 
 ##
 ## * `sync-out`    Copy the package source from the buildroot INTO
@@ -583,6 +579,11 @@ gencontrol:
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo '[ -e debian/pocket ] || exit 0' >>$(BUILDROOT)/.host/entry
+	@echo 'if [ -e debian/control.orig ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '    cp -av  debian/control.orig debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'else' >>$(BUILDROOT)/.host/entry
+	@echo '    cp -av debian/control debian/control.orig' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    make -C debian -f pocket cross TARGET=$(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo 'else' >>$(BUILDROOT)/.host/entry
@@ -619,7 +620,10 @@ cleanpkg:
 	rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'rm -f *.deb *.dsc *.changes *.tar.*' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir -p .keep' >>$(BUILDROOT)/.host/entry
+	@echo '[ $$(find -maxdepth 1 -name "*.orig.tar.*" | wc -l) -eq 0 ] || mv *.orig.tar.* .keep' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -fv *.deb *.dsc *.changes *.tar.*' >>$(BUILDROOT)/.host/entry
+	@echo '[ $$(find .keep/ -maxdepth 1 -name "*.orig.tar.*" | wc -l) -eq 0 ] || mv .keep/*.orig.tar.* ./' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
@@ -636,6 +640,10 @@ buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
+	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '    export CONFIG_SITE=/etc/dpkg-cross/cross-config.$(TARGET)' >>$(BUILDROOT)/.host/entry
+	@echo '    export DEB_BUILD_OPTIONS=nocheck' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'dpkg-buildpackage $(if $(TARGET),-a$(TARGET)) -F -nc -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
@@ -647,23 +655,18 @@ buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ## but calls `dpkg-buildpackage` without `-nc` option starting the
 ## build procedure from its very beginning. This is an intermediate
 ## action usually called by `rebuild`.
-rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg copyorigtar
+rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
+	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '    export CONFIG_SITE=/etc/dpkg-cross/cross-config.$(TARGET)' >>$(BUILDROOT)/.host/entry
+	@echo '    export DEB_BUILD_OPTIONS=nocheck' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'dpkg-buildpackage $(if $(TARGET),-a$(TARGET)) -F -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 	touch $(BUILDROOT)/.buildok
-
-copyorigtar:
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
-	@echo 'find $(INDIR) -maxdepth 1 -type f -name "*.orig.tar.gz" | ' >>$(BUILDROOT)/.host/entry
-	@echo '    while read fn; do' >>$(BUILDROOT)/.host/entry
-	@echo '        cp -fv "$$fn" $(BUILDER_HOME)/' >>$(BUILDROOT)/.host/entry
-	@echo '    done' >>$(BUILDROOT)/.host/entry
-	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `repo`    Import the freshly built package into the package
@@ -680,21 +683,20 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
-	@if [ -f $(BUILDROOT)$(INREPODIR)/conf/distributions ]; then \
+	@if [ -e $(BUILDROOT)$(INREPODIR)/conf/distributions ]; then \
 	   echo 'cp -a $(INREPODIR)/* $(OUTREPODIR)/' >>$(BUILDROOT)/.host/entry; \
-	else \
-	   echo 'mkdir $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry; \
-	   echo "archs=\"\$$(cat *.changes | sed -n -e '/^Architecture:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^$$/ d' -e '/^all$$/ d' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
-	   echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,$$ { s/^[[:space:]]\+[0-9a-f]\+[[:space:]]\+[0-9]\+[[:space:]]\+\([^[:space:]]\+\)\(\/[^[:space:]]\+\)[[:space:]].*$$/\1/p }' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
-	   echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry; \
-	   echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry; \
-	   echo 'Label: $(OUTNAME)' >>$(BUILDROOT)/.host/entry; \
-	   echo 'Codename: $(OUTNAME)' >>$(BUILDROOT)/.host/entry; \
-	   echo 'Architectures: $$archs' >>$(BUILDROOT)/.host/entry; \
-	   echo 'Components: $$comps' >>$(BUILDROOT)/.host/entry; \
-	   echo 'Description: Repository of generated packages' >>$(BUILDROOT)/.host/entry; \
-	   echo 'EOF' >>$(BUILDROOT)/.host/entry; \
 	fi
+	echo 'mkdir -p $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry; \
+	echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^$$/ d' -e '/^all$$/ d' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
+	echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,$$ { s/^[[:space:]]\+[0-9a-f]\+[[:space:]]\+[0-9]\+[[:space:]]\+\([^[:space:]]\+\)\(\/[^[:space:]]\+\)[[:space:]].*$$/\1/p }' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
+	echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry; \
+	echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry; \
+	echo 'Label: $(OUTNAME)' >>$(BUILDROOT)/.host/entry; \
+	echo 'Codename: $(OUTNAME)' >>$(BUILDROOT)/.host/entry; \
+	echo 'Architectures: $$archs' >>$(BUILDROOT)/.host/entry; \
+	echo 'Components: $$comps' >>$(BUILDROOT)/.host/entry; \
+	echo 'Description: Repository of generated packages' >>$(BUILDROOT)/.host/entry; \
+	echo 'EOF' >>$(BUILDROOT)/.host/entry
 	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
 	@echo "  srcname=\"\$$(sed -n -e '/^Source:/ { s/^Source:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
