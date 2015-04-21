@@ -563,7 +563,7 @@ $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
-	@echo '[ -f debian/control.orig ] || cp -v debian/control debian/control.orig' >>$(BUILDROOT)/.host/entry
+	@echo '[ -f debian/control.orig ] || cp -av debian/control debian/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo 'sed -i -e "/^#/ d" debian/control' >>$(BUILDROOT)/.host/entry
 	@echo 'ret=0' >>$(BUILDROOT)/.host/entry
 	@echo 'mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
@@ -572,6 +572,22 @@ $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
 	@echo 'mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo '[ -f $(BUILDER_HOME)/.build-deps.deb ]' >>$(BUILDROOT)/.host/entry
 	@echo 'touch $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
+$(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control: gencontrol
+	@/bin/true
+
+gencontrol:
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
+	@echo '[ -e debian/pocket ] || exit 0' >>$(BUILDROOT)/.host/entry
+	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '    make -C debian -f pocket cross TARGET=$(TARGET)' >>$(BUILDROOT)/.host/entry
+	@echo 'else' >>$(BUILDROOT)/.host/entry
+	@echo '    make -C debian -f pocket TARGET=$(TARGET)' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
