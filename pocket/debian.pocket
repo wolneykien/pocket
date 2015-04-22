@@ -579,16 +579,20 @@ gencontrol:
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo '[ -e debian/pocket ] || exit 0' >>$(BUILDROOT)/.host/entry
-	@echo 'if [ -e debian/control.orig ]; then' >>$(BUILDROOT)/.host/entry
-	@echo '    cp -av  debian/control.orig debian/control' >>$(BUILDROOT)/.host/entry
-	@echo 'else' >>$(BUILDROOT)/.host/entry
-	@echo '    cp -av debian/control debian/control.orig' >>$(BUILDROOT)/.host/entry
-	@echo 'fi' >>$(BUILDROOT)/.host/entry
+	@echo 'cp -a debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
+	@echo 'touch -r debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "Invoke debian/pocket with `cross` (TARGET=$(TARGET)) target..."' >>$(BUILDROOT)/.host/entry
 	@echo '    make -C debian -f pocket cross TARGET=$(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo 'else' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "Invoke debian/pocket with default target..."' >>$(BUILDROOT)/.host/entry
 	@echo '    make -C debian -f pocket TARGET=$(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
+	@echo 'if diff -q debian/control /tmp/control.orig 1>/dev/null; then' >>$(BUILDROOT)/.host/entry
+	@echo '    echo "Resulting debian/control file is unchanged. Reset its timestamp"' >>$(BUILDROOT)/.host/entry
+	@echo '    touch -r /tmp/control.orig debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -f /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
