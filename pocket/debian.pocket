@@ -75,7 +75,7 @@ CROSSBUILDPKGLIST = dpkg-cross crossbuild-essential-$(TARGET)
 # -------------------
 
 BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))
-BUILDREPO = buildrepo$(if $(ARCH),-$(ARCH))
+BUILDREPO = buildrepo
 INSTALLROOT = installroot$(if $(ARCH),-$(ARCH))
 
 comma:= ,
@@ -479,6 +479,9 @@ shell: $(BUILDROOT)/.configured
 ## `show-config` action and `pocket-init` help page for more
 ## information. This target is invoked automatically by the `build`,
 ## `rebuild` and similar targets.
+##  The `TARGET=<arch>` parameter can be used to specify the target
+## host architecture in a case of cross-build. See the `show-targets`
+## action for more information.
 install-buildenv: $(BUILDROOT)/.buildenv $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET))
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
@@ -555,6 +558,9 @@ sync-out: $(BUILDROOT)/.configured
 ## build reqisites (dependencies). See the `install-builddeps` action
 ## for more information. The resulting meta package is placed into the
 ## builder home /usr/src.
+##  The `TARGET=<arch>` parameter can be used to specify the target
+## host architecture in a case of cross-build. See the `show-targets`
+## action for more information.
 make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 
 $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
@@ -648,6 +654,9 @@ cleanpkg:
 ## The resulting package files are written to the /usr/src
 ## directory. This is an intermediate action usually called by
 ## `build`.
+##  The `TARGET=<arch>` parameter can be used to specify the target
+## host architecture in a case of cross-build. See the `show-targets`
+## action for more information.
 buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -667,6 +676,9 @@ buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ## but calls `dpkg-buildpackage` without `-nc` option starting the
 ## build procedure from its very beginning. This is an intermediate
 ## action usually called by `rebuild`.
+##  The `TARGET=<arch>` parameter can be used to specify the target
+## host architecture in a case of cross-build. See the `show-targets`
+## action for more information.
 rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -741,12 +753,18 @@ clean-repo: $(BUILDROOT)/.configured
 ## * `build`    Start or continue building the Debian package from
 ## source and import the result into the `buildrepo` repository.
 ## Calls `buildpkg`, then `repo`.
+##  The `TARGET=<arch>` parameter can be used to specify the target
+## host architecture in a case of cross-build. See the `show-targets`
+## action for more information.
 build: buildpkg repo
 
 ##
 ## * `rebuild`    Make the full build of the Debian package from
 ## source and import the result into the `buildrepo` repository.
 ## Calls `rebuildpkg`, then `repo`.
+##  The `TARGET=<arch>` parameter can be used to specify the target
+## host architecture in a case of cross-build. See the `show-targets`
+## action for more information.
 rebuild: rebuildpkg repo
 
 install-repo: $(INSTALLROOT)/.installrepodone
@@ -813,17 +831,19 @@ docextract:
 	       $(firstword $(MAKEFILE_LIST))
 
 help:
-	@$(MAKE) -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
+	@$(MAKE) --no-print-directory -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
 	sed -e '/^[[:space:]]*\*[[:space:]]/ s/\..*$$/./' | \
 	fmt -w $$(tput cols) | \
 	sed -e 's/ \(===\+\)$$/\n\1/' \
 	    -e 's/ \(---\+\)$$/\n\1/' | \
 	eval "$(FILTER)"
+	@echo
 doc:
-	@$(MAKE) -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
+	@$(MAKE) --no-print-directory -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
 	fmt -w $$(tput cols) | \
 	sed -e 's/ \(===\+\)$$/\n\1/' \
 	    -e 's/ \(---\+\)$$/\n\1/' | \
 	eval "$(FILTER)"
+	@echo
 
 .PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc
