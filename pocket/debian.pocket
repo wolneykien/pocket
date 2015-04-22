@@ -27,6 +27,9 @@ POCKET_VERSION = 0.2.0
 # Customization section
 # ---------------------
 
+# Shell debuggins options:
+SHOPTS = $(if $(DEBUG),x)
+
 # Subconfig number:
 NUM =
 
@@ -164,7 +167,7 @@ APTARCHIVES = /var/cache/apt/archives
 bootstrap: $(BUILDROOT)/.configured
 
 $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/passwd' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/group' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/shadow' >>$(BUILDROOT)/.host/entry
@@ -174,7 +177,7 @@ $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
 	touch $@
 
 $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@UGID_A="$$($(GETUGID_A))"; \
 	 if [ -n "$UGID_A" ]; then \
 	   echo "groupadd -g $${UGID_A#*:} $(ROOTER)" >>$(BUILDROOT)/.host/entry; \
@@ -199,7 +202,7 @@ $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
 $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
 	                 $(BUILDROOT)$(BUSYBOX)
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
-	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
+	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
 	@sed -e 's/^[^[:space:]]\+[[:space:]]\+//' \
 	     -e 's,^.*$$,$(BUSYBOX) dpkg-deb -x /.host& /,' \
 	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
@@ -208,7 +211,7 @@ $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
 	touch $@
 
 $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
-	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -f /var/lib/dpkg/status' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /var/lib/dpkg/status' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /var/lib/dpkg/available' >>$(BUILDROOT)/.host/entry
@@ -234,7 +237,7 @@ $(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
 	@pkgs="$$(sed -e 's/^[^[:space:]]\+[[:space:]]\+//' -e 's,^.*$$,/.host&,' -e 's,^/.host/var/cache/apt/archives/,,' $(DEBPATHS) | tr '\n' ' ')"; \
 	 if [ -n "$$pkgs" ]; then \
 	   echo "Reinstalling packages..." >&2; \
-	   echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry; \
+	   echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
 	   echo 'cp /var/lib/dpkg/status /var/lib/dpkg/status.ok' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd /.host/var/cache/apt/archives' >>$(BUILDROOT)/.host/entry; \
 	   echo "dpkg -i $$pkgs" >>$(BUILDROOT)/.host/entry; \
@@ -321,7 +324,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 ## `bootstrap` again.
 clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
-	@echo 'set -e' >>$(BUILDROOT)/.host/entry
+	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry
 	@echo '  [ -O "$$f" ] || continue' >>$(BUILDROOT)/.host/entry
 	@echo '  rm -rf "$$f"' >>$(BUILDROOT)/.host/entry
@@ -347,7 +350,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 	@if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
 	   echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
-	   echo 'set -e' >>$(BUILDROOT)/.host/entry; \
+	   echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry; \
 	   echo 'find "$(BUILDER_HOME)" -mindepth 1 -prune -exec rm -rf {} \;' >>$(BUILDROOT)/.host/entry; \
 	   echo 'echo "Cleaned \"$(BUILDER_HOME)\"" >&2' >>$(BUILDROOT)/.host/entry; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
@@ -356,7 +359,7 @@ clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
 
 $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	$(if $(RESOLVCONF),,$(error resolv.conf is not configured))
-	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cat <<EOF >/etc/resolv.conf' >>$(BUILDROOT)/.host/entry
 	@cat $(RESOLVCONF) >>$(BUILDROOT)/.host/entry
 	@echo 'EOF' >>$(BUILDROOT)/.host/entry
@@ -381,7 +384,7 @@ update: rm-updated $(BUILDROOT)/.updated
 rm-updated:
 	@if [ -e $(BUILDROOT)/.updated ]; then \
 	  rm -fv $(BUILDROOT)/.updated;\
-	  echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry; \
+	  echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
 	  echo 'rm -fv /etc/resolv.conf' >>$(BUILDROOT)/.host/entry; \
 	  $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	fi
@@ -390,7 +393,7 @@ rm-updated:
 ## * `clean-cache`    Clean the apt's cache: makes no package
 ## available.
 clean-cache: rm-updated
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
@@ -406,7 +409,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	   cp -a $(BUILDREPO)/* \
 		 $(BUILDROOT)$(INREPODIR)/ ; \
 	fi
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
@@ -436,7 +439,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 
 $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	$(if $(TARGET),,$(error Target architecture is not specified))
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'if [ "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
 	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
@@ -460,7 +463,7 @@ $(BUILDROOT)/.cross:
 ##
 ## * `show-targets`    List the available cross-build targets.
 show-targets: $(BUILDROOT)/.cross
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'apt-cache search "^crossbuild-essential-" | sed -e "s/^crossbuild-essential-\([^[:space:]]\+\)[[:space:]].*$$/\1/"' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
@@ -470,7 +473,7 @@ show-targets: $(BUILDROOT)/.cross
 ## package names are specified with the `PKGS=` parameter.
 install: $(BUILDROOT)/.updated
 	$(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to install using 'PKGS=')))
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -484,7 +487,7 @@ install: $(BUILDROOT)/.updated
 ## optional parameter `ROLE=rooter` can be used to obtain root
 ## privileges. To get network access pass `SHARE_NETWORK=yes`.
 shell: $(BUILDROOT)/.configured
-	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ "$(ROLE)" = '$(ROOTER)' ]; then \
 	   echo "export TMPDIR='/tmp'" >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd "/root"' >>$(BUILDROOT)/.host/entry; \
@@ -516,7 +519,7 @@ shell: $(BUILDROOT)/.configured
 install-buildenv: $(BUILDROOT)/.buildenv $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET))
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -527,7 +530,7 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	touch $@
 
 $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$(TARGET)
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -558,7 +561,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 sync-in: $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
 	rsync -a --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'OVER=$(OVER)' >>$(BUILDROOT)/.host/entry
 	@echo 'case "$$OVER" in 0|no|NO|false|FALSE) OVER=;; esac' >>$(BUILDROOT)/.host/entry
 	@echo 'DELETE=' >>$(BUILDROOT)/.host/entry
@@ -598,7 +601,7 @@ $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
   $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET)) \
   $(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control),$(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control)
 	$(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/*),,$(error Source is empty. Sync-in a source directory first using 'make sync-in'))
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo 'cp -a debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
@@ -620,7 +623,7 @@ $(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control: gencontrol
 	@/bin/true
 
 gencontrol:
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo '[ -e debian/pocket ] || exit 0' >>$(BUILDROOT)/.host/entry
@@ -650,7 +653,7 @@ gencontrol:
 install-builddeps: $(BUILDROOT)/.builddeps
 
 $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -667,7 +670,7 @@ $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 ## `*.dsc`, `*.changes` and `*.tar.*`.
 cleanpkg:
 	rm -f $(BUILDROOT)/.buildok
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir -p .keep' >>$(BUILDROOT)/.host/entry
 	@echo '[ $$(find -maxdepth 1 -name "*.orig.tar.*" | wc -l) -eq 0 ] || mv *.orig.tar.* .keep' >>$(BUILDROOT)/.host/entry
@@ -689,7 +692,7 @@ cleanpkg:
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
 buildpkg: $(BUILDROOT)/.builddeps cleanpkg
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
@@ -711,7 +714,7 @@ buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
 rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
@@ -734,7 +737,7 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 repo: $(BUILDROOT)/.repodone
 
 $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
-	@echo '#!/bin/sh -e' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
@@ -752,7 +755,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	echo 'Components: $$comps' >>$(BUILDROOT)/.host/entry; \
 	echo 'Description: Repository of generated packages' >>$(BUILDROOT)/.host/entry; \
 	echo 'EOF' >>$(BUILDROOT)/.host/entry
-	@echo 'set -ex' >>$(BUILDROOT)/.host/entry
+	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
 	@echo "  srcname=\"\$$(sed -n -e '/^Source:/ { s/^Source:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo "  srcver=\"\$$(sed -n -e '/^Version:/ { s/^Version:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
@@ -774,7 +777,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 ## * `clean-repo`    Completely remove the `buildrepo` directory.
 clean-repo: $(BUILDROOT)/.configured
 	rm -f $(BUILDROOT)/.repodone
-	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
@@ -816,7 +819,7 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
 		BUILDROOT=$(INSTALLROOT) \
 		update
-	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(INSTALLROOT)/.host/entry
 	@echo 'dpkg --unpack -R $(INREPODIR)' >>$(INSTALLROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(INSTALLROOT)/.host/entry; \
@@ -828,7 +831,7 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	touch $@
 
 $(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
-	@echo '#!/bin/sh -ex' >$(INSTALLROOT)/.host/entry
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(INSTALLROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(INSTALLROOT)/.host/entry; \
 	   echo "export no_proxy='$$no_proxy'" >>$(INSTALLROOT)/.host/entry; \
