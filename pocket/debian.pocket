@@ -1,6 +1,6 @@
 #
-# Copyright (C) 2014  Paul Wolneykien <manowar@altlinux.org>
-# Copyright (C) 2014  STC Metrotek [http://metrotek.spb.ru/]
+# Copyright (C) 2015  Paul Wolneykien <manowar@altlinux.org>
+# Copyright (C) 2015  STC Metrotek [http://metrotek.spb.ru/]
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -135,6 +135,16 @@ APTARCHIVES = /var/cache/apt/archives
 ## source code. Use `shell` for shell. Brief help page is accessible
 ## with `help` and a little more detailed manual with `doc` and
 ## `doc SUBJ=<subject>` actions.
+
+##
+## Architectures (native and cross)
+## --------------------------------
+##
+## Use `ARCH=<arch>` parameter to specify the native architecture of
+## the build and install chroots (`buildroot` and `installroot`
+## respectively). An other paramerter `TARGET=<cross-arch>` is
+## used to specify the desired target architecture when is building
+## a package. See `show-targets` action for more information.
 
 ##
 ## Targets (actions)
@@ -362,6 +372,10 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 ## `install` and `install-builddeps` actions. Whith this accumulation
 ## system building of one package can require some previously built
 ## packages. See the `repo` action for more information.
+##  If the `CROSS=yes` parameter is specified then the corresponding
+## cross toolchain repository (if any is configured for the distro)
+## is added to the package source list. Then the list of cross build
+## targets can be listed with the `show-targets` action.
 update: rm-updated $(BUILDROOT)/.updated
 
 rm-updated:
@@ -397,6 +411,9 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(DISTRO).list' >>$(BUILDROOT)/.host/entry
+	@if [ -n "$(CROSS)" -a -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
+	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@if [ -d $(BUILDROOT)$(INREPODIR) ]; then \
 	   comps="$$(sed -n -e '/^Components:/ { s/^[^[:space:]]\+[[:space:]]*//p; q }' $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)/Release)"; \
 	   if [ -z "$$comps" ]; then \
@@ -414,6 +431,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	@[ -z "$(CROSS)" ] || touch $(BUILDROOT)/.cross
 	touch $@
 
 $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
@@ -422,9 +440,8 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	@echo 'if [ "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
 	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
-	else \
-	    echo '    rm -fv /etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
 	fi
+	@echo '    touch /etc/apt/sources.list.d/.cross' >>$(BUILDROOT)/.host/entry
 	@echo '    dpkg --add-architecture $(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
@@ -434,7 +451,19 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	[ ! -e $(BUILDROOT)/etc/apt/sources.list.d/.cross ] || touch $(BUILDROOT)/.cross
 	touch $@
+
+$(BUILDROOT)/.cross:
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) update CROSS=yes
+
+##
+## * `show-targets`    List the available cross-build targets.
+show-targets: $(BUILDROOT)/.cross
+	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
+	@echo 'apt-cache search "^crossbuild-essential-" | sed -e "s/^crossbuild-essential-\([^[:space:]]\+\)[[:space:]].*$$/\1/"' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `install`    Install the given packages into the buildroot. The
