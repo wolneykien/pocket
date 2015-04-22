@@ -460,13 +460,6 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 $(BUILDROOT)/.cross:
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) update CROSS=yes
 
-##
-## * `show-targets`    List the available cross-build targets.
-show-targets: $(BUILDROOT)/.cross
-	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
-	@echo 'apt-cache search "^crossbuild-essential-" | sed -e "s/^crossbuild-essential-\([^[:space:]]\+\)[[:space:]].*$$/\1/"' >>$(BUILDROOT)/.host/entry
-	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `install`    Install the given packages into the buildroot. The
@@ -483,8 +476,8 @@ install: $(BUILDROOT)/.updated
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 ##
-## * `shell`    Invoke the command shell inside the chroot. The
-## optional parameter `ROLE=rooter` can be used to obtain root
+## * `shell`    Invoke the command shell inside the build chroot.
+## The optional parameter `ROLE=rooter` can be used to obtain root
 ## privileges. To get network access pass `SHARE_NETWORK=yes`.
 shell: $(BUILDROOT)/.configured
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
@@ -802,14 +795,23 @@ build: buildpkg repo
 ## action for more information.
 rebuild: rebuildpkg repo
 
+##
+## * `install-repo`    Performs the test installation of the
+## current `buildrepo` contents. Use `install-shell` after the
+## successfull install to get inside.
 install-repo: $(INSTALLROOT)/.installrepodone
 
-reinstall-repo: install-clean install-repo
-
+##
+## * `install-clean`    Removes the install (test) chroot completely.
 install-clean:
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
 		BUILDROOT=$(INSTALLROOT) \
 		clean
+
+##
+## * `reinstall-repo`    Make `install-clean` then `install-repo`.
+reinstall-repo: install-clean install-repo
+
 
 $(INSTALLROOT)/.installrepodone: $(BUILDROOT)/.repodone \
 $(BUILDREPO)/dists/$(OUTNAME)/Release
@@ -841,10 +843,41 @@ $(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
 	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
+##
+## * `install-shell`    Invoke the command shell inside the install
+## (test) chroot. The optional parameter `ROLE=rooter` can be used to
+## obtain root privileges. To get network access pass `SHARE_NETWORK=yes`.
 install-shell: $(INSTALLROOT)/.testenv
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
 		BUILDROOT=$(INSTALLROOT) \
 		shell
+
+##
+## * `show-targets`    List the available cross-build targets.
+show-targets: $(BUILDROOT)/.cross
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
+	@echo 'apt-cache search "^crossbuild-essential-" | sed -e "s/^crossbuild-essential-\([^[:space:]]\+\)[[:space:]].*$$/\1/"' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
+##
+## * `show-config`    Show the current Pocketfile configuration.
+show-config:
+	@echo 'Flavour: $(POCKET_FLAVOUR)'
+	@echo 'Version: $(POCKET_VERSION)'
+	@echo 'Distro: $(REPO):$(DISTRO)'
+	@echo 'Mirror: $($(REPO)_MIRROR)'
+	@echo 'Components: $(DISTCOMPS)'
+	@echo 'Architecture: $(if $(ARCH),$(ARCH),$(shell dpkg --print-architecture))'
+	@echo 'System variant: $(VARIANT)'
+	@echo 'System package list: $(SYSPKGLIST)'
+	@echo 'Exclude package list: $(NOSYSPKGLIST)'
+	@echo 'Downloaded system tarball: $(realpath $(BUILDROOTTAR))'
+	@echo 'Build package list: $(BUILDPKGLIST)'
+	@echo 'Test package list: $(TESTPKGLIST)'
+	@echo 'Build root: $(abspath $(BUILDROOT))'
+	@echo 'Install root: $(abspath $(INSTALLROOT))'
+	@echo 'Repository: $(abspath $(BUILDREPO))'
 
 
 # Documentation processing
@@ -865,6 +898,8 @@ docextract:
                -e 'H' \
 	       $(firstword $(MAKEFILE_LIST))
 
+##
+## * `help`    Show the brief help information.
 help:
 	@$(MAKE) --no-print-directory -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
 	sed -e '/^[[:space:]]*\*[[:space:]]/ s/\..*$$/./' | \
@@ -873,6 +908,10 @@ help:
 	    -e 's/ \(---\+\)$$/\n\1/' | \
 	eval "$(FILTER)"
 	@echo
+
+##
+## * `doc`    Show the detailed help information (use `SUBJ=<action>` to
+## see the description for the particular action).
 doc:
 	@$(MAKE) --no-print-directory -s -f $(firstword $(MAKEFILE_LIST)) docextract | \
 	fmt -w $$(tput cols) | \
@@ -881,4 +920,5 @@ doc:
 	eval "$(FILTER)"
 	@echo
 
-.PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc
+
+.PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc docextract show-targets show-config
