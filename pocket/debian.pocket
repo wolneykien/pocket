@@ -16,11 +16,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+# Constants
+# ---------
+
+# Pocket flavour and version:
+POCKET_FLAVOUR = debian
+POCKET_VERSION = 0.2.0
+
+
 # Customization section
 # ---------------------
-
-# Pocket flavour:
-FLAVOUR = debian
 
 # Subconfig number:
 NUM =
@@ -155,7 +160,7 @@ $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
 	@echo 'touch /etc/shadow' >>$(BUILDROOT)/.host/entry
 	@echo 'update-passwd' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
@@ -178,7 +183,7 @@ $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
 	   exit 1; \
 	 fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
@@ -189,7 +194,7 @@ $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
 	     -e 's,^.*$$,$(BUSYBOX) dpkg-deb -x /.host& /,' \
 	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
@@ -212,7 +217,7 @@ $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
 	@echo '}' >>$(BUILDROOT)/.host/entry
 	@sed -e 's,^\([^[:space:]]\+\)[[:space:]]\+\(.*\)$$,install "\1" "/.host\2" >>/var/lib/dpkg/status,' $(DEBPATHS) >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
@@ -313,7 +318,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo '  echo "Removed \"$$f\"" >&2' >>$(BUILDROOT)/.host/entry
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	rm -fv $(BUILDROOT)/.testenv
 	rm -fv $(BUILDROOT)/.installrepodone
 	rm -fv $(BUILDROOT)/.builddeps
@@ -347,7 +352,7 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	@echo 'EOF' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	@echo "Setting up $(BUILDROOT)/etc/resolv.conf" >&2
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 ##
 ## * `update`    Call `apt-get update` to refresh the set of known
@@ -364,7 +369,7 @@ rm-updated:
 	  rm -fv $(BUILDROOT)/.updated;\
 	  echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry; \
 	  echo 'rm -fv /etc/resolv.conf' >>$(BUILDROOT)/.host/entry; \
-	  $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry; \
+	  $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	fi
 
 ##
@@ -376,7 +381,7 @@ clean-cache: rm-updated
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)/dists/$(OUTNAME)/Release),$(BUILDREPO)/dists/$(OUTNAME)/Release)
 	$(if $(DISTRO),,$(error Distribution name is not specified))
@@ -389,6 +394,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	fi
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(DISTRO).list' >>$(BUILDROOT)/.host/entry
 	@if [ -d $(BUILDROOT)$(INREPODIR) ]; then \
@@ -398,10 +404,8 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	     exit 1; \
 	   fi; \
 	   for a in $$(sed -n -e '/^Architectures:/ { s/^[^[:space:]]\+[[:space:]]*//p; q }' $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)/Release); do \
-	       echo "echo \"deb [arch=$$a] file://$(INREPODIR) $(OUTNAME) $$comps\" >/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	       echo "echo \"deb [arch=$$a] file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	   done; \
-	else \
-	   echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -409,7 +413,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	 fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
@@ -429,7 +433,7 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	 fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 ##
@@ -517,7 +521,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 ## `SKIPSYNC` configuration variable (or command-line argument) are
 ## not copied into the buildroot. By default the skip list is
 ## "`.git* .svn*`".
-sync-in: $(BUILDROOT)/.configured
+sync-in: $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
 	rsync -a --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
@@ -554,16 +558,20 @@ sync-out: $(BUILDROOT)/.configured
 make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 
 $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
+  $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET)) \
   $(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control),$(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control)
 	$(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/*),,$(error Source is empty. Sync-in a source directory first using 'make sync-in'))
 	@echo '#!/bin/sh -ex' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
-	@echo '[ -f debian/control.orig ] || cp -av debian/control debian/control.orig' >>$(BUILDROOT)/.host/entry
+	@echo 'cp -a debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
+	@echo 'touch -r debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo 'sed -i -e "/^#/ d" debian/control' >>$(BUILDROOT)/.host/entry
 	@echo 'ret=0' >>$(BUILDROOT)/.host/entry
 	@echo 'mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
-	@echo '[ ! -f debian/control.orig ] || mv debian/control.orig debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'cp -a /tmp/control.orig debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'touch -r /tmp/control.orig debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -f /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo '[ $$ret -eq 0 ]' >>$(BUILDROOT)/.host/entry
 	@echo 'mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo '[ -f $(BUILDER_HOME)/.build-deps.deb ]' >>$(BUILDROOT)/.host/entry
@@ -582,7 +590,7 @@ gencontrol:
 	@echo 'cp -a debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo 'touch -r debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
-	@echo 'echo "Invoke debian/pocket with `cross` (TARGET=$(TARGET)) target..."' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "Invoke debian/pocket with \`cross\` (TARGET=$(TARGET)) target..."' >>$(BUILDROOT)/.host/entry
 	@echo '    make -C debian -f pocket cross TARGET=$(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo 'else' >>$(BUILDROOT)/.host/entry
 	@echo 'echo "Invoke debian/pocket with default target..."' >>$(BUILDROOT)/.host/entry
