@@ -194,7 +194,7 @@ $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
 	     -e 's,^.*$$,$(BUSYBOX) dpkg-deb -x /.host& /,' \
 	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
@@ -318,7 +318,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo '  echo "Removed \"$$f\"" >&2' >>$(BUILDROOT)/.host/entry
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	rm -fv $(BUILDROOT)/.testenv
 	rm -fv $(BUILDROOT)/.installrepodone
 	rm -fv $(BUILDROOT)/.builddeps
