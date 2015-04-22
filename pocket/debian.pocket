@@ -480,8 +480,10 @@ shell: $(BUILDROOT)/.configured
 ## information. This target is invoked automatically by the `build`,
 ## `rebuild` and similar targets.
 ##  The `TARGET=<arch>` parameter can be used to specify the target
-## host architecture in a case of cross-build. See the `show-targets`
-## action for more information.
+## host architecture in a case of cross-build. In that case the
+## `crossbuild-essential-$TARGET` packages are installed in addition
+## to `build-essential`. See the `show-targets` action for more
+## information.
 install-buildenv: $(BUILDROOT)/.buildenv $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET))
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
@@ -725,8 +727,9 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
 	@echo "  srcname=\"\$$(sed -n -e '/^Source:/ { s/^Source:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo "  srcver=\"\$$(sed -n -e '/^Version:/ { s/^Version:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
-	@echo '  reprepro -b $(OUTREPODIR) removesrc $(OUTNAME) $$srcname $$srcver' >>$(BUILDROOT)/.host/entry
-	@echo '  reprepro -b $(OUTREPODIR) --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
+	@echo "  arch=\"\$$(sed -n -e '/^Architecture:/ { s/^.*[[:space:]]\([^[:space:]]\+\)$$/\1/p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
+	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname), \$$SourceVersion (==$$srcver), \$$Architecture (==$$arch)"' >>$(BUILDROOT)/.host/entry
+	@echo '  reprepro -b $(OUTREPODIR) -A $$arch --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@echo 'chmod -R a+rX $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
