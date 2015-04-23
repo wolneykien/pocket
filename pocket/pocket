@@ -45,6 +45,16 @@ Options:
                  ~/pocket; can also be specified via the POCKETDIR
                  environment variable;
 
+  -a <arch>, --arch=<arch>    supply the \`ARCH=<arch>\` Pocketfile
+                              parameter;
+
+  -t <cross-arch>,
+  --target=<cross-arch>       supply the \`TARGET=<cross-arch>\`
+                              Pocketfile parameter;
+
+  -n, --network    supply the \`SHARE_NETWORK=yes\` Pocketfile
+                   parameter;
+
   -q, --quiet    suppress output;
 
   -d, --debug    turn on the debugging output;
@@ -66,17 +76,160 @@ Pseudo-actions:
                invoke \`$PROG init --help\` to get its usage
                information.
 
+Action wrappers:
+
+  install <packages...>    invokes the Pocketfile \`install\` action
+                           with the specified list of packages
+                           as PKGS=<packages...>;
+
+  help [subject]    invokes the Pocketfile \`help\` action with the
+                    subject as SUBJ=<subject> if specified;
+
+  doc [subject]     same as the above but invokes the \`doc\` action;
+
+  sync-in [-o|--over] <from>    invokes the Pocketfile \`sync-in\`
+                              action with <from> directory path as
+                    FROM=<from>; the \`-o|--over\` option corresponds
+                    to the \`OVER=yes\` parameter;
+
+  sync-out <to>     complementary to the above action supplying <to>
+                    directory as TO=<to>;
+
+  shell [--rooter]  invokes the Pocketfile \`shell\` action; the
+                    option \`--rooter\` passes \`ROLE=rooter\`
+                    parameter;
+
+  install-shell [--rooter]    same as the above but for the
+                              \`install-shell\` Pocketfile action.
+
 EOF
     exit 0
 }
 
-# Special case: the `init` (pseudo) action
 
-if [ "${1:-}" = 'init' ]; then
-    shift
-    "$PROG_PATH/pocket-init" "$POCKETDIR" "$@"
-    exit 0
+## Functions
+
+do_invoke()
+{
+    local normal=
+    [ ${debug:-0} -gt 0 ] || normal=1
+    local deep=
+    [ ${debug:-0} -le 1 ] || deep=1
+
+    "$MAKE" -w -r ${normal:+-s} ${quiet:+--no-print-directory} \
+            ${deep:+-d} ${dry:+-n} \
+            -C "${POCKETDIR%/}" -f "$POCKETFILE" \
+        "$@" ${debug:+DEBUG=yes}
+}
+
+invoke()
+{
+    if [ -n "$quiet" ]; then
+        do_invoke "$action" "$@" >/dev/null
+    else
+        do_invoke "$action" "$@"
+    fi
+}
+
+quote()
+{
+    printf '%s\n' "$*" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
+## Special cases:
+
+if [ -n "${1:-}" ]; then
+    case "$1" in
+        install)
+            params=; pkgs=
+            for a in "$@"; do
+                case "$a" in
+                    *=*)
+                        name="${a%%=*}"
+                        val="${a#*=}"
+                        [ -z "$params" ] || params="$params "
+                        params="${params}$name=\"$(quote "$val")\""
+                        ;;
+                    *)
+                        [ -z "$pkgs" ] || pkgs="$pkgs "
+                        pkgs="${pkgs}$a"
+                        ;;
+                esac
+            done
+
+            [ -n "$pkgs" ] || fatal 'No packages specified\n'
+
+            eval "invoke install PKGS=\"$(quote "$pkgs")\" $params"
+            exit 0
+            ;;
+        help|doc)
+            action="$1"; shift
+            if [ $# -gt 0 ]; then
+                subj="$1"; shift
+                invoke "$action" SUBJ="$subj" "$@"
+            else
+                invoke "$action" "$@"
+            fi
+            exit 0
+            ;;
+        sync-in|sync-out)
+            action="$1"; shift
+
+            OPTS=`getopt -n "$PROG sync-in" -o o -l over -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
+            eval set -- "$OPTS"
+
+            dir=; over=
+
+            while :; do
+                case "$1" in
+                    -o|--over) over=yes;;
+                    --) shift; break;;
+                    *)
+                        fatal 'Unrecognized option: %s\n' "$1"
+                        ;;
+                esac
+                shift
+            done
+
+            if [ $# -gt 0 ]; then
+                dir="$1"; shift
+                case "$dir" in
+                    /*)
+                        ;;
+                    *)
+                        dir="$(pwd)/$dir"
+                        ;;
+                esac
+            fi
+
+            case "$action" in
+                sync-in)
+                    [ -n "$dir" ] || \
+                        fatal 'Source directory is not specified\n'
+                    invoke 'sync-in' FROM="$dir" "$@" ${over:+OVER=yes}
+                    ;;
+                sync-out)
+                    [ -n "$dir" ] || \
+                        fatal 'Destination directory is not specified\n'
+                    invoke 'sync-out' TO="$dir" "$@"
+                    ;;
+                *)
+                    fatal 'BUG!\n'
+                    ;;
+            esac
+
+            exit 0
+            ;;
+        init)
+            shift
+            "$PROG_PATH/pocket-init" "$POCKETDIR" "$@"
+            exit 0
+            ;;
+    esac
 fi
+
+
+## Argument parsing
 
 OPTS=`getopt -n $PROG -o C:,q,d,n,h,V -l dir:,quiet,debug,deep-debug,dry-run,help,version -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
 
@@ -110,21 +263,6 @@ while :; do
 done
 
 
-## Functions
-
-invoke()
-{
-    local normal=
-    [ ${debug:-0} -gt 0 ] || normal=1
-    local deep=
-    [ ${debug:-0} -le 1 ] || deep=1
-
-    "$MAKE" -w -r ${normal:+-s} ${quiet:+--no-print-directory} \
-            ${deep:+-d} ${dry:+-n} \
-            -C "${POCKETDIR%/}" -f "$POCKETFILE" \
-        "$@" ${debug:+DEBUG=yes}
-}
-
 ## Main
 
 action=
@@ -140,9 +278,5 @@ if [ -z "$action" ]; then
         show_help
     fi
 else
-    if [ -n "$quiet" ]; then
-        invoke "$action" "$@" >/dev/null
-    else
-        invoke "$action" "$@"
-    fi
+    invoke "$action" "$@"
 fi
