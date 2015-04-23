@@ -1,0 +1,148 @@
+#!/bin/sh -efu
+#
+# Copyright (C) 2015  Paul Wolneykien <manowar@altlinux.org>
+# Copyright (C) 2015  STC Metrotek [http://metrotek.spb.ru/]
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+PROG="${PROG:-${0##*/}}"
+PROG_VERSION="0.2.0"
+PROG_PATH="${0%/*}"
+
+. "$PROG_PATH/pocket-functions.sh"
+
+POCKETDIR="${POCKETDIR:-$DEFPOCKETDIR}"
+MAKE="${MAKE:-make}"
+
+show_help() {
+    cat <<EOF
+Usage: $PROG [ options ] [ACTION] [action arguments]
+
+$PROG invokes the specified Pocketfile action or one of the
+built in pseudo-actions. Without an action specified invokes
+the default Pocketfile action or shows this help page if
+Pocketfile doesn't exist.
+
+Use \`$PROG init\` to initialize the empty pocket and
+\`$PROG init --help\` for its usage information.
+
+Options:
+
+  -C POCKETDIR, --dir=POCKETDIR     the pocket directory containing
+                                    a Pocketfile; the default is
+                 ~/pocket; can also be specified via the POCKETDIR
+                 environment variable;
+
+  -q, --quiet    suppress output;
+
+  -d, --debug    turn on the debugging output;
+
+  --deep-debug   equvalent of double \`-d\` option, turns on the
+                 internal rule debugging;
+
+  -n, --dry-run  print the commands that would be executed, but do
+                 not execute them;
+
+  -h, --help     show this help page and exit;
+
+  -V, --version  print the program version information and exit.
+
+
+Pseudo-actions:
+
+  init [args]  invokes the pocket-init util with arguments specified;
+               invoke \`$PROG init --help\` to get its usage
+               information.
+
+EOF
+    exit 0
+}
+
+# Special case: the `init` (pseudo) action
+
+if [ "${1:-}" = 'init' ]; then
+    shift
+    "$PROG_PATH/pocket-init" "$POCKETDIR" "$@"
+    exit 0
+fi
+
+OPTS=`getopt -n $PROG -o C:,q,d,n,h,V -l dir:,quiet,debug,deep-debug,dry-run,help,version -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
+
+eval set -- "$OPTS"
+
+dir=; quiet=; debug=; dry=
+
+while :; do
+    case "$1" in
+        -C|--dir)
+            shift
+            POCKETDIR="$1"
+            ;;
+        -q|--quiet) quiet=-q;;
+        -d|--debug)
+            [ -n "$debug" ] || debug=0
+            debug=$((debug + 1))
+            ;;
+        --deep-debug)
+            [ ${debug:-0} -gt 1 ] || debug=2
+            ;;
+        -n|--dry-run) dry=-n;;
+        -V|--version) print_version; exit 0;;
+        -h|--help) show_help;;
+        --) shift; break;;
+        *)
+            fatal 'Unrecognized option: %s\n' "$1"
+            ;;
+    esac
+    shift
+done
+
+
+## Functions
+
+invoke()
+{
+    local normal=
+    [ ${debug:-0} -gt 0 ] || normal=1
+    local deep=
+    [ ${debug:-0} -le 1 ] || deep=1
+
+    "$MAKE" -w -r ${normal:+-s} ${quiet:+--no-print-directory} \
+            ${deep:+-d} ${dry:+-n} \
+            -C "${POCKETDIR%/}" -f "$POCKETFILE" \
+        "$@" ${debug:+DEBUG=yes}
+}
+
+## Main
+
+action=
+
+if [ $# -gt 0 ]; then
+    action="$1"; shift
+fi
+
+if [ -z "$action" ]; then
+    if [ -e "${POCKETDIR%/}/$POCKETFILE" ]; then
+        invoke "$@"
+    else
+        show_help
+    fi
+else
+    if [ -n "$quiet" ]; then
+        invoke "$action" "$@" >/dev/null
+    else
+        invoke "$action" "$@"
+    fi
+fi

@@ -73,6 +73,8 @@ SKIPSYNC = .git* .svn*
 # Cross-build environment
 CROSSBUILDPKGLIST = dpkg-cross crossbuild-essential-$(TARGET)
 
+# Information message prefix
+INFOPFX=[pocket]
 
 # Essential variables
 # -------------------
@@ -130,6 +132,11 @@ BUILDROOTTARDIRS = debootstrap var/cache/apt/archives var/lib/apt/lists
 BUSYBOX = /.host/bin/busybox
 APTARCHIVES = /var/cache/apt/archives
 
+
+# Output brief help page by default
+default: help
+
+
 ## Pocketfile Debian
 ## =================
 
@@ -167,6 +174,7 @@ APTARCHIVES = /var/cache/apt/archives
 bootstrap: $(BUILDROOT)/.configured
 
 $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
+	@echo "$(INFOPFX) Pre-configuretion..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/passwd' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/group' >>$(BUILDROOT)/.host/entry
@@ -177,13 +185,14 @@ $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
 	touch $@
 
 $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
+	@echo "$(INFOPFX) Configuretion..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@UGID_A="$$($(GETUGID_A))"; \
 	 if [ -n "$UGID_A" ]; then \
 	   echo "groupadd -g $${UGID_A#*:} $(ROOTER)" >>$(BUILDROOT)/.host/entry; \
 	   echo "useradd -d /root -u $${UGID_A%%:*} -g $${UGID_A#*:} -s $(USERSHELL) $(ROOTER)" >>$(BUILDROOT)/.host/entry; \
 	 else \
-	   echo 'Unable to get user and group IDs of the pseudouser A' >&2; \
+	   echo 'Unable to get user and group IDs of the pseudouser A'; \
 	   exit 1; \
 	 fi
 	@UGID_B="$$($(GETUGID_B))"; \
@@ -192,7 +201,7 @@ $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
 	   echo "groupadd -g $${UGID_B#*:} $(BUILDER)" >>$(BUILDROOT)/.host/entry; \
 	   echo "useradd -d $(BUILDER_HOME) -u $${UGID_B%%:*} -g $${UGID_B#*:} -s $(USERSHELL) $(BUILDER)" >>$(BUILDROOT)/.host/entry; \
 	 else \
-	   echo 'Unable to get user and group IDs of the pseudouser B' >&2; \
+	   echo 'Unable to get user and group IDs of the pseudouser B'; \
 	   exit 1; \
 	 fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
@@ -201,6 +210,7 @@ $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
 
 $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
 	                 $(BUILDROOT)$(BUSYBOX)
+	@echo "$(INFOPFX) Exctracting the base system files..."
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
 	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
 	@sed -e 's/^[^[:space:]]\+[[:space:]]\+//' \
@@ -211,6 +221,7 @@ $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
 	touch $@
 
 $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
+	@echo "$(INFOPFX) Adjusting the states of packages..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -f /var/lib/dpkg/status' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /var/lib/dpkg/status' >>$(BUILDROOT)/.host/entry
@@ -223,10 +234,8 @@ $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
 	@echo "  echo 'Status: install ok installed'" \
 	  >>$(BUILDROOT)/.host/entry
 	@echo '  echo' >>$(BUILDROOT)/.host/entry
-	@echo '  dpkg-deb -c "$$deb" | sed -n -e "/^.*[[:space:]]\.\// { s,^.*[[:space:]]\./,,; s/^$$/./; s/[[:space:]]->[[:space:]].*$$//; s,/$$,,; s,^.*$$,/&,; p }" >/var/lib/dpkg/info/$$pkg.list' \
-	  >>$(BUILDROOT)/.host/entry
-	@echo "  echo \"Updated '\$$pkg' status\" >&2" \
-	  >>$(BUILDROOT)/.host/entry
+	@echo '  dpkg-deb -c "$$deb" | sed -n -e "/^.*[[:space:]]\.\// { s,^.*[[:space:]]\./,,; s/^$$/./; s/[[:space:]]->[[:space:]].*$$//; s,/$$,,; s,^.*$$,/&,; p }" >/var/lib/dpkg/info/$$pkg.list' >>$(BUILDROOT)/.host/entry
+	@echo "  echo \"Updated '\$$pkg' status\" >&2" >>$(BUILDROOT)/.host/entry
 	@echo '}' >>$(BUILDROOT)/.host/entry
 	@sed -e 's,^\([^[:space:]]\+\)[[:space:]]\+\(.*\)$$,install "\1" "/.host\2" >>/var/lib/dpkg/status,' $(DEBPATHS) >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
@@ -236,7 +245,7 @@ $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
 $(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
 	@pkgs="$$(sed -e 's/^[^[:space:]]\+[[:space:]]\+//' -e 's,^.*$$,/.host&,' -e 's,^/.host/var/cache/apt/archives/,,' $(DEBPATHS) | tr '\n' ' ')"; \
 	 if [ -n "$$pkgs" ]; then \
-	   echo "Reinstalling packages..." >&2; \
+	   echo "$(INFOPFX) Reinstalling packages..."; \
 	   echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
 	   echo 'cp /var/lib/dpkg/status /var/lib/dpkg/status.ok' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd /.host/var/cache/apt/archives' >>$(BUILDROOT)/.host/entry; \
@@ -247,15 +256,14 @@ $(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
 	touch $@
 
 $(BUILDROOT)$(BUSYBOX): $(DEBPATHS)
-	@ \
+	@echo "$(INFOPFX) Exctracting the busybox program..."
 	bb="$$(sed -n -e 's/^$(BBOXPKG)[[:space:]]\+//p' $(DEBPATHS))"; \
 	if [ -n "$$bb" ]; then \
-		echo $(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host >&2; \
-		$(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host; \
-		touch $@; \
+	    $(DPKGX) $(BUILDROOT)/.host$$bb $(BUILDROOT)/.host; \
+	    touch $@; \
 	else \
-		echo "Error: package '$(BBOXPKG)' not found" >&2; \
-		exit 1; \
+	    echo "Error: package '$(BBOXPKG)' not found"; \
+	    exit 1; \
 	fi
 
 ##
@@ -271,6 +279,7 @@ download: $(BUILDROOTTAR)
 extract: $(DEBPATHS)
 
 $(DEBPATHS): $(BUILDROOTTAR) $(BUILDROOT)/.stamp
+	@echo "$(INFOPFX) Generating the list of the base packages..."
 	tar xpf $(BUILDROOTTAR) -C $(BUILDROOT)/.host
 	if [ -n "$(strip $(NOSYSPKGLIST))" ]; then \
 	    echo "$(strip $(NOSYSPKGLIST))" | \
@@ -288,6 +297,7 @@ $(BUILDROOTTAR):
 	$(if $(REPO),,$(error No repositories are specified))
 	$(if $($(REPO)_MIRROR),,$(error Mirror of "$(REPO)" is unknown))
 	$(if $(DISTRO),,$(error Distribution name is not specified))
+	@echo "$(INFOPFX) Downloading the base packages..."
 	rm -rf $(BUILDROOT)/.host
 	mkdir -p $(BUILDROOT)
 	$(DEBOOTSTRAP) --download-only \
@@ -323,6 +333,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 ## * `clean`    Clean the buildroot making it necessary to
 ## `bootstrap` again.
 clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
+	@echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
 	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry
@@ -348,6 +359,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 ## * `clean-builder`    Clean the home directory of the user
 ## 'builder' (/usr/src).
 clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
+	@echo "$(INFOPFX) Cleanup the builder home dir..."
 	@if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
 	   echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
 	   echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry; \
@@ -364,7 +376,7 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	@cat $(RESOLVCONF) >>$(BUILDROOT)/.host/entry
 	@echo 'EOF' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	@echo "Setting up $(BUILDROOT)/etc/resolv.conf" >&2
+	@echo "$(INFOPFX) Setting up $(BUILDROOT)/etc/resolv.conf"
 	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 ##
@@ -393,6 +405,7 @@ rm-updated:
 ## * `clean-cache`    Clean the apt's cache: makes no package
 ## available.
 clean-cache: rm-updated
+	@echo "$(INFOPFX) Cleanup the package cache..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
@@ -403,6 +416,7 @@ clean-cache: rm-updated
 $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)/dists/$(OUTNAME)/Release),$(BUILDREPO)/dists/$(OUTNAME)/Release)
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	$(if $(DISTCOMPS),,$(error No distribution components are specified))
+	@echo "$(INFOPFX) Updating the package cache..."
 	rm -rf $(BUILDROOT)$(INREPODIR)
 	if [ -f $(BUILDREPO)/dists/$(OUTNAME)/Release ]; then \
 	   mkdir $(BUILDROOT)$(INREPODIR); \
@@ -439,6 +453,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 
 $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	$(if $(TARGET),,$(error Target architecture is not specified))
+	@echo "$(INFOPFX) Updating the package cache ($(TARGET))..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'if [ "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
@@ -466,6 +481,7 @@ $(BUILDROOT)/.cross:
 ## package names are specified with the `PKGS=` parameter.
 install: $(BUILDROOT)/.updated
 	$(if $(filter install,$(MAKECMDGOALS)),$(if $(PKGS),,$(error Specify packages to install using 'PKGS=')))
+	@echo "$(INFOPFX) Installing the packages: $(PKGS)"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -480,6 +496,7 @@ install: $(BUILDROOT)/.updated
 ## The optional parameter `ROLE=rooter` can be used to obtain root
 ## privileges. To get network access pass `SHARE_NETWORK=yes`.
 shell: $(BUILDROOT)/.configured
+	@echo "$(INFOPFX) Entering $(realpath $(BUILDROOT)/$(BUILDER_HOME))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ "$(ROLE)" = '$(ROOTER)' ]; then \
 	   echo "export TMPDIR='/tmp'" >>$(BUILDROOT)/.host/entry; \
@@ -512,6 +529,7 @@ shell: $(BUILDROOT)/.configured
 install-buildenv: $(BUILDROOT)/.buildenv $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET))
 
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
+	@echo "$(INFOPFX) Installing the build environment: $(strip $(BUILDPKGLIST))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -523,6 +541,7 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	touch $@
 
 $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$(TARGET)
+	@echo "$(INFOPFX) Installing the build environment ($(TARGET)): $(strip $(CROSSBUILDPKGLIST))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -554,6 +573,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 sync-in: $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
 	rsync -a --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
+	@echo "$(INFOPFX) Copy files from $(FROM) into the builder home dir"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'OVER=$(OVER)' >>$(BUILDROOT)/.host/entry
 	@echo 'case "$$OVER" in 0|no|NO|false|FALSE) OVER=;; esac' >>$(BUILDROOT)/.host/entry
@@ -578,6 +598,7 @@ sync-in: $(BUILDROOT)/.buildenv
 ## parameter `TO=<path>`.
 sync-out: $(BUILDROOT)/.configured
 	$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into with 'TO=')))
+	@echo "$(INFOPFX) Copy file from the builder home dir into $(TO)"
 	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(TO)
 
 ##
@@ -594,6 +615,7 @@ $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
   $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET)) \
   $(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control),$(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control)
 	$(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/*),,$(error Source is empty. Sync-in a source directory first using 'make sync-in'))
+	@echo "$(INFOPFX) Calculating the build requirements..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
@@ -646,6 +668,7 @@ gencontrol:
 install-builddeps: $(BUILDROOT)/.builddeps
 
 $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
+	@echo "$(INFOPFX) Installing the build requirements..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
@@ -662,6 +685,7 @@ $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 ## package building procedure. The wildcard includes: `*.deb`,
 ## `*.dsc`, `*.changes` and `*.tar.*`.
 cleanpkg:
+	@echo "$(INFOPFX) Deleting all built packages..."
 	rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -685,6 +709,7 @@ cleanpkg:
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
 buildpkg: $(BUILDROOT)/.builddeps cleanpkg
+	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
@@ -707,6 +732,7 @@ buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
 rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
+	@echo "$(INFOPFX) Building the package from source..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
@@ -730,6 +756,7 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 repo: $(BUILDROOT)/.repodone
 
 $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
+	@echo "$(INFOPFX) Updating the repository accumulator..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
@@ -769,6 +796,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 ##
 ## * `clean-repo`    Completely remove the `buildrepo` directory.
 clean-repo: $(BUILDROOT)/.configured
+	@echo "$(INFOPFX) Deleting the repository accumulator..."
 	rm -f $(BUILDROOT)/.repodone
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
@@ -815,6 +843,7 @@ reinstall-repo: install-clean install-repo
 
 $(INSTALLROOT)/.installrepodone: $(BUILDROOT)/.repodone \
 $(BUILDREPO)/dists/$(OUTNAME)/Release
+	@echo "$(INFOPFX) Installing all built packages into $(abspath $(INSTALLROOT))"
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
 		BUILDROOT=$(INSTALLROOT) \
 		clean
@@ -833,6 +862,7 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	touch $@
 
 $(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
+	@echo "$(INFOPFX) Installing additional packages: $(strip $(TESTPKGLIST))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(INSTALLROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(INSTALLROOT)/.host/entry; \
@@ -921,4 +951,4 @@ doc:
 	@echo
 
 
-.PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc docextract show-targets show-config
+.PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc docextract show-targets show-config default

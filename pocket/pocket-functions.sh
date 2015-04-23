@@ -17,12 +17,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-POCKET_VERSION="0.1.0"
+POCKET_VERSION="0.2.0"
 PROG_VERSION="$POCKET_VERSION"
 
 CONFDIR="/etc/pocket"
 USERCONFDIR="$HOME/.pocket"
 DEFCONFNAME="pocket.conf"
+DEFPOCKETDIR="$HOME/pocket"
 
 POCKETFILE='Pocketfile'
 POCKETSUF='.pocket'
