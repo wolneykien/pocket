@@ -1,10 +1,4 @@
 
-NAME
-----
-
-`pocket-init` --- pocket chroot initialization and configuration tool
-
-
 CONFIGURATION
 -------------
 
@@ -27,8 +21,8 @@ in the examples section below.
 EXAMPLES
 --------
 
-*Note, the examples below show the `pocket-init` command but can
-be run as `pocket init` too. See `pocket(1)` for more information.*
+Note, the examples below show the `pocket-init` command but can
+be run as `pocket init` too. See `pocket(1)` for more information.
 
 ### Pocket initialization
 
