@@ -76,6 +76,10 @@ CROSSBUILDPKGLIST = dpkg-cross crossbuild-essential-$(TARGET)
 # Information message prefix
 INFOPFX=[pocket]
 
+# Output repository name
+OUTNAME = local
+
+
 # Essential variables
 # -------------------
 
@@ -101,7 +105,6 @@ INDIR = /.in
 INREPODIR = $(INDIR)/repo
 OUTDIR = /.out
 OUTREPODIR = $(OUTDIR)/repo
-OUTNAME = local
 
 FAKEROOT = /usr/bin/fakeroot-sysv $(if $(wildcard $(BUILDROOT)/.fakedata),-i /.fakedata) -s /.fakedata
 SHELL = /bin/bash
@@ -923,7 +926,7 @@ show-config:
 	@echo 'Test package list: $(TESTPKGLIST)'
 	@echo 'Build root: $(abspath $(BUILDROOT))'
 	@echo 'Install root: $(abspath $(INSTALLROOT))'
-	@echo 'Repository: $(abspath $(BUILDREPO))'
+	@echo 'Repository "$(OUTNAME)": $(abspath $(BUILDREPO))'
 
 
 # Documentation processing

@@ -45,6 +45,8 @@ Options:
   -n NUM, --num=NUM                 set the subconfiguration number to
                                     NUM;
 
+  -r NAME, --repo=NAME              output repository name;
+
   -u, --update                      update the existing $POCKETFILE.
 
 EOF
@@ -52,10 +54,10 @@ EOF
 }
 
 
-OPTS=`getopt -n $PROG -o q,v,V,h,c:,f:,F,a:,n:,u -l quiet,verbose,version,help,config:,flavour:,avail-flavours,arch:,num:,update -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
+OPTS=`getopt -n $PROG -o q,v,V,h,c:,f:,F,a:,n:,r:,u -l quiet,verbose,version,help,config:,flavour:,avail-flavours,arch:,num:,repo:,update -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
 eval set -- "$OPTS"
 
-quiet=; verbose=; config=; flavour=; arch=; update=; num=
+quiet=; verbose=; config=; flavour=; arch=; update=; num=; reponame=
 while :; do
     case "$1" in
     -q|--quiet) quiet=-q;;
@@ -67,6 +69,7 @@ while :; do
     -F|avail-flavours) do_print_flavours;;
     -a|--arch) shift; arch="$1";;
     -n|--num) shift; num="$1";;
+    -r|--repo) shift; reponame="$1";;
     -u|--update) update=-u;;
     --) shift; break;;
     *)
@@ -129,8 +132,12 @@ else
 fi
 
 set_config_val "$pocketfile" NUM "$num"
-set_config_val "$pocketfile" ARCH "$arch"
+set_config_val "$pocketfile" ARCH "${arch:-$(getarch)}"
 set_config_val "$pocketfile" COMPONENTS "$*"
+
+if [ -n "$reponame" ]; then
+    set_config_val "$pocketfile" OUTNAME "$reponame"
+fi
 
 [ -n "${HSHPRIVDIR:-}" ] && set_config_val "$pocketfile" HSHPRIVDIR "$HSHPRIVDIR"
 [ -n "${RESOLVCONF:-}" ] && set_config_val "$pocketfile" RESOLVCONF "$RESOLVCONF"

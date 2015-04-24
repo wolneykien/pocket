@@ -231,6 +231,18 @@ guess_flavour()
 # TODO: make a real guess :-)
 }
 
+getarch() {
+    local dpkg="$(which dpkg ||:)"
+    local arch=
+    if [ -n "$dpkg" ]; then
+        arch="$("$dpkg" --print-architecture)"
+    fi
+    if [ -z "$arch" ]; then
+        arch="$(uname -m)"
+    fi
+
+    echo "$arch"
+}
 
 make_workdir()
 {
