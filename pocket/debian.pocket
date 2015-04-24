@@ -498,19 +498,23 @@ install: $(BUILDROOT)/.updated
 ## * `shell`    Invoke the command shell inside the build chroot.
 ## The optional parameter `ROLE=rooter` can be used to obtain root
 ## privileges. To get network access pass `SHARE_NETWORK=yes`.
+## The `USERSHELL=<path>` parameter can be used to specify the
+## shell program to run inside the chroot. Moreover, the `CMD=<command>`
+## parameter is passed via `-c` option to the shell providing
+## a way to execute arbitrary command inside the chroot and exit.
 shell: $(BUILDROOT)/.configured
 	@echo "$(INFOPFX) Entering $(realpath $(BUILDROOT)/$(BUILDER_HOME))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ "$(ROLE)" = '$(ROOTER)' ]; then \
 	   echo "export TMPDIR='/tmp'" >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd "/root"' >>$(BUILDROOT)/.host/entry; \
-	   echo '$(USERSHELL)' >>$(BUILDROOT)/.host/entry; \
+	   echo "$(USERSHELL) $(if $(CMD),-c '$(CMD)')" >>$(BUILDROOT)/.host/entry; \
 	   $(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) use_pty=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	else \
 	   echo "export TMPDIR='$(BUILDER_HOME)/tmp'" >>$(BUILDROOT)/.host/entry; \
 	   echo 'mkdir -p "$$TMPDIR"' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd "$(BUILDER_HOME)"' >>$(BUILDROOT)/.host/entry; \
-	   echo '$(USERSHELL)' >>$(BUILDROOT)/.host/entry; \
+	   echo "$(USERSHELL) $(if $(CMD),-c '$(CMD)')" >>$(BUILDROOT)/.host/entry; \
 	   $(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) use_pty=yes $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
 	fi; \
 	exit 0
@@ -578,8 +582,8 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 ## "`.git* .svn*`".
 sync-in: $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
-	rsync -a --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(FROM)/ $(BUILDROOT)$(INDIR)/SOURCE
-	@echo "$(INFOPFX) Copy files from $(FROM) into the builder home dir"
+	rsync -a --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(abspath $(FROM))/ $(BUILDROOT)$(INDIR)/SOURCE
+	@echo "$(INFOPFX) Copy files from $(abspath $(FROM)) into the builder home dir"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'OVER=$(OVER)' >>$(BUILDROOT)/.host/entry
 	@echo 'case "$$OVER" in 0|no|NO|false|FALSE) OVER=;; esac' >>$(BUILDROOT)/.host/entry
@@ -604,8 +608,8 @@ sync-in: $(BUILDROOT)/.buildenv
 ## parameter `TO=<path>`.
 sync-out: $(BUILDROOT)/.configured
 	$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into with 'TO=')))
-	@echo "$(INFOPFX) Copy file from the builder home dir into $(TO)"
-	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(TO)
+	@echo "$(INFOPFX) Copy file from the builder home dir into $(abspath $(TO))"
+	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(abspath $(TO))
 
 ##
 ## * `make-depspkg`    Prepare the special meta-package to install the
