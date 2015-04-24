@@ -76,8 +76,9 @@ CROSSBUILDPKGLIST = dpkg-cross crossbuild-essential-$(TARGET)
 # Information message prefix
 INFOPFX=[pocket]
 
-# Output repository name
-OUTNAME = local
+# Output repository name and description
+OUTNAME = pocket
+OUTDESC = Built with the help of Pocket and Hasher (http://github.com/wolneykien/pocket)
 
 
 # Essential variables
@@ -790,7 +791,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	echo 'Codename: $(OUTNAME)' >>$(BUILDROOT)/.host/entry; \
 	echo 'Architectures: $$archs' >>$(BUILDROOT)/.host/entry; \
 	echo 'Components: $$comps' >>$(BUILDROOT)/.host/entry; \
-	echo 'Description: Repository of generated packages' >>$(BUILDROOT)/.host/entry; \
+	echo 'Description: $(OUTDESC)' >>$(BUILDROOT)/.host/entry; \
 	echo 'EOF' >>$(BUILDROOT)/.host/entry
 	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
@@ -978,4 +979,23 @@ doc:
 ## Examples
 ## --------
 ##
-## Some examples...
+## The examples below show the `pocket` command. However, it is
+## possible to run them via `make -C <pocketdir> -f Pocketfile`
+## too.
+##
+## ### Bootstrapping the chroot
+##
+## In order to bootstrap the pocket chroot you have to have the
+## Internet access to the corresponding system repository (use
+## `pocket show-confi` to konow the URL) or a pre-downloaded tarball
+## of packages (you get it along with a successful network bootstrap):
+##
+##     pocket bootstrap
+##
+## If there is no tarball, it starts with downloading the packages and
+## then installs them into the chroot (`buildroot`, to be more
+## precise). On success, you get the `~/pocket/buildroot` directory
+## with a fresh minimal system and the tarball with all packages it
+## consists of. If for some reason you want to download the tarball
+## first invoke `pocket download` and then `pocket bootstrap`
+## (probably on other computer) to extract and install the packages.
