@@ -52,7 +52,7 @@ Options:
   --target=<cross-arch>       supply the \`TARGET=<cross-arch>\`
                               Pocketfile parameter;
 
-  -n, --network    supply the \`SHARE_NETWORK=yes\` Pocketfile
+  -N, --network    supply the \`SHARE_NETWORK=yes\` Pocketfile
                    parameter;
 
   -q, --quiet    suppress output;
@@ -95,12 +95,16 @@ Action wrappers:
   sync-out <to>     complementary to the above action supplying <to>
                     directory as TO=<to>;
 
-  shell [--rooter]  invokes the Pocketfile \`shell\` action; the
-                    option \`--rooter\` passes \`ROLE=rooter\`
-                    parameter;
+  shell [--rooter] [ -- command... ] invokes the Pocketfile \`shell\`
+                                     action; the option \`--rooter\`
+                              passes \`ROLE=rooter\` parameter;
+                              all arguments after the \`--\`
+                              delimiter are passed via the
+                              \`CMD=<command>\` parameter;
 
-  install-shell [--rooter]    same as the above but for the
-                              \`install-shell\` Pocketfile action.
+  install-shell [--rooter] [ -- command... ] same as the above but
+                                             for the \`install-shell\`
+                                             Pocketfile action.
 
 EOF
     exit 0
@@ -123,6 +127,7 @@ while [ $# -gt 0 ]; do
                 exit 1
             fi
             myargs="${myargs} $1 \"$(quote "$2")\""
+            shift
             ;;
         -*)
             myargs="${myargs} \"$(quote "$1")\""
@@ -134,37 +139,43 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,n,q,d,n,h,V -l dir:,arch:,target:,network,quiet,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
-eval set -- "$OPTS"
+OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,N,q,d,n,h,V -l dir:,arch:,target:,network,quiet,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
 
 dir=; quiet=; debug=; dry=; arch=; target=; network=
-while :; do
-    case "$1" in
-        -C|--dir)
-            shift
-            POCKETDIR="$1"
-            ;;
-        -a|--arch) shift; arch="$1";;
-        -t|--target) shift; target="$1";;
-        -n|--network) network=-n;;
-        -q|--quiet) quiet=-q;;
-        -d|--debug)
-            [ -n "$debug" ] || debug=0
+
+argparse() {
+    while :; do
+        case "$1" in
+            -C|--dir)
+                shift
+                POCKETDIR="$1"
+                ;;
+            -a|--arch) shift; arch="$1";;
+            -t|--target) shift; target="$1";;
+            -N|--network) network=-n;;
+            -q|--quiet) quiet=-q;;
+            -d|--debug)
+                [ -n "$debug" ] || debug=0
             debug=$((debug + 1))
             ;;
-        --deep-debug)
-            [ ${debug:-0} -gt 1 ] || debug=2
-            ;;
-        -n|--dry-run) dry=-n;;
-        -V|--version) print_version; exit 0;;
-        -h|--help) show_help;;
-        --) shift; break;;
-        *)
-            fatal 'Unrecognized option: %s\n' "$1"
-            ;;
-    esac
-    shift
-done
+            --deep-debug)
+                [ ${debug:-0} -gt 1 ] || debug=2
+                ;;
+            -n|--dry-run) dry=-n;;
+            -V|--version) print_version; exit 0;;
+            -h|--help) show_help;;
+            --) shift; break;;
+            *)
+                write_error 'Unrecognized option: %s\n' "$1"
+                show_usage
+                exit 1
+                ;;
+        esac
+        shift
+    done
+}
+
+eval "argparse $OPTS"
 
 
 ## Functions
@@ -188,17 +199,16 @@ do_invoke()
 invoke()
 {
     if [ -n "$quiet" ]; then
-        do_invoke "$action" "$@" >/dev/null
+        do_invoke "$@" >/dev/null
     else
-        do_invoke "$action" "$@"
+        do_invoke "$@"
     fi
 }
 
 getdir()
 {
     local dir="${1:-}"
-    if [ $# -gt 0 ]; then
-        dir="$1"; shift
+    if [ -n "$dir" ]; then
         case "$dir" in
             /*)
                 ;;
@@ -207,7 +217,7 @@ getdir()
                 ;;
         esac
     fi
-
+    
     echo "$dir"
 }
 
@@ -249,11 +259,15 @@ else
             eval "invoke 'install' PKGS=\"$(quote "$pkgs")\" $params"
             ;;
         help|doc)
+            normal=
+            [ ${debug:-0} -gt 0 ] || normal=1
             if [ $# -gt 0 ]; then
                 subj="$1"; shift
-                invoke "$action" SUBJ="$subj" "$@"
+                invoke ${normal:+--no-print-directory} \
+                       "$action" SUBJ="$subj" "$@"
             else
-                invoke "$action" "$@"
+                invoke ${normal:+--no-print-directory} \
+                       "$action" "$@"
             fi
             ;;
         sync-in)
@@ -266,24 +280,66 @@ else
                     -o|--over) over=-o;;
                     --) shift; break;;
                     *)
-                        fatal 'Unrecognized option: %s\n' "$1"
+                        write_error 'Unrecognized option: %s\n' "$1"
+                        show_usage
+                        exit 1
                         ;;
                 esac
                 shift
             done
             
-            dir="$(getdir "${1:-}")"
-
+            dir=
+            if [ $# -gt 0 ]; then
+                dir="$(getdir "$1")"
+                shift
+            fi
             [ -n "$dir" ] || \
                 fatal 'Source directory is not specified\n'
 
             invoke 'sync-in' FROM="$dir" "$@" ${over:+OVER=yes}
             ;;
         sync-out)
-            dir="$(getdir "${1:-}")"
+            dir=
+            if [ $# -gt 0 ]; then
+                dir="$(getdir "$1")"
+                shift
+            fi
             [ -n "$dir" ] || \
                 fatal 'Destination directory is not specified\n'
             invoke 'sync-out' TO="$dir" "$@"
+            ;;
+        shell|install-shell)
+            role=; params=; cmd=
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --rooter)
+                        role='rooter'
+                        ;;
+                    --)
+                        shift
+                        cmd="$*"
+                        break
+                        ;;
+                    *=*)
+                        name="${1%%=*}"
+                        val="${1#*=}"
+                        [ -z "$params" ] || params="$params "
+                        params="${params}$name=\"$(quote "$val")\""
+                        ;;
+                    *)
+                        write_error 'Unrecognized option: %s\n' "$1"
+                        show_usage
+                        exit 1
+                        ;;
+                esac
+                shift
+            done
+            
+            if [ -n "$cmd" ]; then
+                eval "invoke \"$action\" $params ${role:+ROLE=\"$role\"} CMD=\"$(quote "$cmd")\""
+            else
+                eval "invoke \"$action\" $params ${role:+ROLE=\"$role\"}"
+            fi
             ;;
         init)
             "$PROG_PATH/pocket-init" "$POCKETDIR" "$@"
