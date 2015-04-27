@@ -191,7 +191,7 @@ $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
 	touch $@
 
 $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
-	@echo "$(INFOPFX) Configuretion..."
+	@echo "$(INFOPFX) Configuration..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@UGID_A="$$($(GETUGID_A))"; \
 	 if [ -n "$UGID_A" ]; then \
