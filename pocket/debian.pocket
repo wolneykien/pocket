@@ -789,10 +789,10 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	   echo 'cp -a $(INREPODIR)/* $(OUTREPODIR)/' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo 'mkdir -p $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry
-	@echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^[[:space:]]*$$/ d' -e \"s/^all$$/\$$(dpkg --print-architecture)/g\" | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry
-	@echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,$$ { s/^[[:space:]]\+[0-9a-f]\+[[:space:]]\+[0-9]\+[[:space:]]\+\([^[:space:]]\+\)\(\/[^[:space:]]\+\)[[:space:]].*$$/\1/p }' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry
+	@echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\\+[[:space:]]*//; s/[[:space:]]/\\n/gp }' | sed -e '/^[[:space:]]*\$$/ d' -e \"s/^all\\\$$/\$$(dpkg --print-architecture)/g\" | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
+	@echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,\$$ { s/^[[:space:]]\\+[0-9a-f]\\+[[:space:]]\\+[0-9]\\+[[:space:]]\\+\\([^[:space:]]\\+\\)\\(\\/[^[:space:]]\\+\\)[[:space:]].*\$$/\\1/p }' | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
 	@echo 'oldarchs=$$([ ! -e $(OUTREPODIR)/conf/distributions ] || sed -n -e "/^Architectures:/ { s/^Architectures:[[:space:]]*//; s/[[:space:]]*\$$//; p; q }" $(OUTREPODIR)/conf/distributions)' >>$(BUILDROOT)/.host/entry
-	echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
+	@echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
 	@echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry
 	@echo 'Label: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
 	@echo 'Codename: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
@@ -808,15 +808,15 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
 	@echo "  srcname=\"\$$(sed -n -e '/^Source:/ { s/^Source:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo "  srcver=\"\$$(sed -n -e '/^Version:/ { s/^Version:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
-	@echo "  archs=\"\$$(sed -n -e '/^Architecture:/ { s/^Architecture:[[:space:]]*//; s/[[:space:]]*$$//; s/[[:space:]]*source[[:space:]]*//; p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
+	@echo "  archs=\"\$$(sed -n -e '/^Architecture:/ { s/^Architecture:[[:space:]]*//; s/[[:space:]]*$$//; p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo '  archfilter=' >>$(BUILDROOT)/.host/entry
 	@echo '  for a in $$archs; do' >>$(BUILDROOT)/.host/entry
 	@echo '    [ -z "$$archfilter" ] || archfilter="$$archfilter | "' >>$(BUILDROOT)/.host/entry
-	@echo '    archfilter="$${archfilter}\$$Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
+	@echo '    archfilter="$${archfilter}Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '' >>$(BUILDROOT)/.host/entry
-	@echo '  echo "Remove $$srcname $$srcver packages from architectures: $$archs"' >>$(BUILDROOT)/.host/entry
-	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname), \$$SourceVersion (==$$srcver), $$archfilter"' >>$(BUILDROOT)/.host/entry
+	@echo '  echo "Remove $$srcname packages from architectures: $$archs"' >>$(BUILDROOT)/.host/entry
+	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname), $$archfilter"' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "Add $$srcname $$srcver packages to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry
 	@echo '  reprepro -b $(OUTREPODIR) --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
 	@echo 'done' >>$(BUILDROOT)/.host/entry
