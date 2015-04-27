@@ -613,10 +613,10 @@ sync-in: $(BUILDROOT)/.buildenv
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
 ##
-## * `sync-out`    Copy the package source from the buildroot INTO
-## the given directory. Files from the package source directory
-## /usr/src/SOURCE are copied into the diretory given with the
-## parameter `TO=<path>`.
+## * `sync-out`    Update the package source in the given directory from
+## the buildroot. Existing files in the directory specified with the
+## `TO=<path>` parameter are updated with the files from `/usr/src/SOURCE`
+## buildroot directory.
 sync-out: $(BUILDROOT)/.configured
 	$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into with 'TO=')))
 	@echo "$(INFOPFX) Copy file from the builder home dir into $(abspath $(TO))"
