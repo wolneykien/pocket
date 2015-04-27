@@ -790,8 +790,8 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	fi
 	@echo 'mkdir -p $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry
 	@echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\\+[[:space:]]*//; s/[[:space:]]/\\n/gp }' | sed -e '/^[[:space:]]*\$$/ d' -e \"s/^all\\\$$/\$$(dpkg --print-architecture)/g\" | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
-	@echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,\$$ { s/^[[:space:]]\\+[0-9a-f]\\+[[:space:]]\\+[0-9]\\+[[:space:]]\\+\\([^[:space:]]\\+\\)\\(\\/[^[:space:]]\\+\\)[[:space:]].*\$$/\\1/p }' | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
-	@echo 'oldarchs=$$([ ! -e $(OUTREPODIR)/conf/distributions ] || sed -n -e "/^Architectures:/ { s/^Architectures:[[:space:]]*//; s/[[:space:]]*\$$//; p; q }" $(OUTREPODIR)/conf/distributions)' >>$(BUILDROOT)/.host/entry
+	@echo "comps=\"\$$( ( cat *.changes | sed -n -e '/^Files:/,\$$ { s/^[[:space:]]\\+[0-9a-f]\\+[[:space:]]\\+[0-9]\\+[[:space:]]\\+\\([^[:space:]]\\+\\)\\(\\/[^[:space:]]\\+\\)[[:space:]].*\$$/\\1/p }'; if [ -e $(OUTREPODIR)/conf/distributions ]; then sed -n -e '/^Components:/ { s/^Components:[[:space:]]*//; s/[[:space:]]\\+/\\n/g; p; q }' $(OUTREPODIR)/conf/distributions; fi ) | sed -e '/^[[:space:]]*\$$/ d' | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
+	@echo "oldarchs=\"\$$([ ! -e $(OUTREPODIR)/conf/distributions ] || sed -n -e \"/^Architectures:/ { s/^Architectures:[[:space:]]*//; s/[[:space:]]*\$$//; p; q }\" $(OUTREPODIR)/conf/distributions)\"" >>$(BUILDROOT)/.host/entry
 	@echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
 	@echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry
 	@echo 'Label: $(OUTNAME)' >>$(BUILDROOT)/.host/entry
@@ -839,7 +839,7 @@ clean-repo: $(BUILDROOT)/.configured
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
-	rm -rf $(BUILDREPO)
+	rm -rfv $(BUILDREPO)
 	rm -fv $(BUILDROOT)/.updated
 
 ##
