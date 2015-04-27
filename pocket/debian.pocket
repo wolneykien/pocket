@@ -812,7 +812,11 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '  archfilter=' >>$(BUILDROOT)/.host/entry
 	@echo '  for a in $$archs; do' >>$(BUILDROOT)/.host/entry
 	@echo '    [ -z "$$archfilter" ] || archfilter="$$archfilter | "' >>$(BUILDROOT)/.host/entry
-	@echo '    archfilter="$${archfilter}Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
+	@echo '    if [ "$$a" = "all" ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '      archfilter="$${archfilter}Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
+	@echo '    else' >>$(BUILDROOT)/.host/entry
+	@echo '      archfilter="$${archfilter}\$$Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
+	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "Remove $$srcname packages from architectures: $$archs"' >>$(BUILDROOT)/.host/entry
