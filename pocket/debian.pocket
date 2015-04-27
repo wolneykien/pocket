@@ -343,6 +343,12 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	@echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"
 	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
 	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "Removed \"$(OUTREPODIR)\"" >&2' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
+	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry
 	@echo '  [ -O "$$f" ] || continue' >>$(BUILDROOT)/.host/entry
 	@echo '  rm -rf "$$f"' >>$(BUILDROOT)/.host/entry
