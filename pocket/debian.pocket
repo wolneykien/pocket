@@ -79,13 +79,13 @@ INFOPFX=[pocket]
 # Output repository name and description
 OUTNAME = pocket
 OUTDESC = Built with the help of Pocket and Hasher (http://github.com/wolneykien/pocket)
+BUILDREPO = $(if $(filter pocket,$(OUTNAME)),repo,$(OUTNAME)-repo)
 
 
 # Essential variables
 # -------------------
 
 BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))
-BUILDREPO = buildrepo
 INSTALLROOT = installroot$(if $(ARCH),-$(ARCH))
 
 comma:= ,
@@ -389,7 +389,7 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 ##
 ## * `update`    Call `apt-get update` to refresh the set of known
 ## packages. If any packages were built in this pocket before,
-## the contents of the `buildrepo` directory is included in the
+## the contents of the `repo` directory is included in the
 ## list of package sources making them automatically available for the
 ## `install` and `install-builddeps` actions. Whith this accumulation
 ## system building of one package can require some previously built
@@ -766,7 +766,7 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ##
 ## * `repo`    Import the freshly built package into the package
 ## repository. The internal repository is then synchronized with
-## the `buildrepo` directory near the `buildroot` one. The `buildrepo`
+## the `repo` directory near the `buildroot` one. The `repo`
 ## repository accumulates all successful builds: new packages are
 ## included and the existing ones are updated. This accumulation
 ## system provides the base for incremental builds. The action is
@@ -812,7 +812,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	touch $@
 
 ##
-## * `clean-repo`    Completely remove the `buildrepo` directory.
+## * `clean-repo`    Completely remove the `repo` directory.
 clean-repo: $(BUILDROOT)/.configured
 	@echo "$(INFOPFX) Deleting the repository accumulator..."
 	rm -f $(BUILDROOT)/.repodone
@@ -825,7 +825,7 @@ clean-repo: $(BUILDROOT)/.configured
 
 ##
 ## * `build`    Start or continue building the Debian package from
-## source and import the result into the `buildrepo` repository.
+## source and import the result into the `repo` repository.
 ## Calls `buildpkg`, then `repo`.
 ##
 ##     The `TARGET=<arch>` parameter can be used to specify the target
@@ -835,7 +835,7 @@ build: buildpkg repo
 
 ##
 ## * `rebuild`    Make the full build of the Debian package from
-## source and import the result into the `buildrepo` repository.
+## source and import the result into the `repo` repository.
 ## Calls `rebuildpkg`, then `repo`.
 ##
 ##     The `TARGET=<arch>` parameter can be used to specify the
@@ -845,7 +845,7 @@ rebuild: rebuildpkg repo
 
 ##
 ## * `install-repo`    Performs the test installation of the
-## current `buildrepo` contents. Use `install-shell` after the
+## current `repo` contents. Use `install-shell` after the
 ## successfull install to get inside.
 install-repo: $(INSTALLROOT)/.installrepodone
 
