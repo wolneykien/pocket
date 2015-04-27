@@ -789,7 +789,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	   echo 'cp -a $(INREPODIR)/* $(OUTREPODIR)/' >>$(BUILDROOT)/.host/entry; \
 	fi
 	echo 'mkdir -p $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry; \
-	echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^$$/ d' -e '/^all$$/ d' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
+	echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\+[[:space:]]*//; s/[[:space:]]/\n/gp }' | sed -e '/^[[:space:]]*$$/ d' -e \"s/^all$$/\$$(dpkg --print-architecture)/g\" | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
 	echo "comps=\"\$$(cat *.changes | sed -n -e '/^Files:/,$$ { s/^[[:space:]]\+[0-9a-f]\+[[:space:]]\+[0-9]\+[[:space:]]\+\([^[:space:]]\+\)\(\/[^[:space:]]\+\)[[:space:]].*$$/\1/p }' | sort -u | tr '\n' ' ')\"" >>$(BUILDROOT)/.host/entry; \
 	echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry; \
 	echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry; \
