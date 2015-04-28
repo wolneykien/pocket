@@ -844,14 +844,12 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'archs=' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
-	@echo '  mainarch="$${f##*_}"' >>$(BUILDROOT)/.host/entry
-	@echo '  mainarch="$${mainarch%.*}"' >>$(BUILDROOT)/.host/entry
 	@echo "  srcname=\"\$$(sed -n -e '/^Source:/ { s/^Source:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo "  srcver=\"\$$(sed -n -e '/^Version:/ { s/^Version:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo "  archs=\"\$$(sed -n -e '/^Architecture:/ { s/^Architecture:[[:space:]]*//; s/[[:space:]]*$$//; p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo '  archfilter=' >>$(BUILDROOT)/.host/entry
 	@echo '  delarchs=' >>$(BUILDROOT)/.host/entry
-	@echo '  numpkgs=$$(reprepro -b $(OUTREPODIR) listfilter $(OUTNAME) "\$$Source (==$$srcname), \$$Architecture (!=source), \$$Architecture (!=$$mainarch)" | wc -l)' >>$(BUILDROOT)/.host/entry
+	@echo '  delsrc=0' >>$(BUILDROOT)/.host/entry
 	@echo '  for a in $$archs; do' >>$(BUILDROOT)/.host/entry
 	@echo '    [ -z "$$archfilter" ] || archfilter="$$archfilter | "' >>$(BUILDROOT)/.host/entry
 	@echo '    [ -z "$$delarchs" ] || delarchs="$$delarchs "' >>$(BUILDROOT)/.host/entry
@@ -861,10 +859,10 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '        delarchs="$${delarchs}all"' >>$(BUILDROOT)/.host/entry
 	@echo '        ;;' >>$(BUILDROOT)/.host/entry
 	@echo '      source)' >>$(BUILDROOT)/.host/entry
-	@echo '        [ $$numpkgs -eq 0 ] || continue' >>$(BUILDROOT)/.host/entry
-	@echo '        echo "No packages for other architectures found. Can safely replace the source package"' >>$(BUILDROOT)/.host/entry
-	@echo '        archfilter="$${archfilter}\$$Architecture (==source)"' >>$(BUILDROOT)/.host/entry
-	@echo '        delarchs="$${delarchs}source"' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter=' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="all and any"' >>$(BUILDROOT)/.host/entry
+	@echo '        delsrc=1' >>$(BUILDROOT)/.host/entry
+	@echo '        break' >>$(BUILDROOT)/.host/entry
 	@echo '        ;;' >>$(BUILDROOT)/.host/entry
 	@echo '      *)' >>$(BUILDROOT)/.host/entry
 	@echo '        archfilter="$${archfilter}\$$Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
@@ -874,8 +872,8 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "Remove $$srcname packages from architectures: $$delarchs"' >>$(BUILDROOT)/.host/entry
-	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname), $$archfilter"' >>$(BUILDROOT)/.host/entry
-	@echo '  if [ $$numpkgs -eq 0 ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname)$${archfilter:+, $$archfilter}"' >>$(BUILDROOT)/.host/entry
+	@echo '  if [ $$delsrc -ne 0 ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    echo "Add $$srcname $$srcver source package to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry
 	@echo '    reprepro -b $(OUTREPODIR) --ignore=wrongdistribution includedsc $(OUTNAME) $${f%_*}.dsc' >>$(BUILDROOT)/.host/entry
 	@echo '  fi' >>$(BUILDROOT)/.host/entry
