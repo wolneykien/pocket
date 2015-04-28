@@ -28,12 +28,13 @@ MAKE="${MAKE:-make}"
 
 show_help() {
     cat <<EOF
-Usage: $PROG [ options ] [ACTION] [action arguments]
+Usage: $PROG [ options ] [ACTION] [action arguments ...]
 
 $PROG invokes the specified Pocketfile action or one of the
 built in pseudo-actions. Without an action specified invokes
 the default Pocketfile action or shows this help page if
-Pocketfile doesn't exist.
+Pocketfile doesn't exist. The actiion arguments (i.e.
+\`VAR=VALUE\` pairs are passed to the Pocketfile as is.
 
 Use \`$PROG init\` to initialize the empty pocket and
 \`$PROG init --help\` for its usage information.
@@ -54,6 +55,8 @@ Options:
 
   -N, --network    supply the \`SHARE_NETWORK=yes\` Pocketfile
                    parameter;
+
+  -r NAME, --repo=NAME        override the repository name;
 
   -q, --quiet    suppress output;
 
@@ -81,6 +84,10 @@ Action wrappers:
   install <packages...>    invokes the Pocketfile \`install\` action
                            with the specified list of packages
                            as PKGS=<packages...>;
+
+  rebuild <package>        invokes the Pocketfile \`rebuild\` action
+                           with the specified package name
+                           as PKG=<package>;
 
   help [subject]    invokes the Pocketfile \`help\` action with the
                     subject as SUBJ=<subject> if specified;
@@ -121,7 +128,7 @@ quote()
 myargs=
 while [ $# -gt 0 ]; do
     case "$1" in
-        -C|--dir|-a|--arch|-t|--target)
+        -C|--dir|-a|--arch|-t|--target|-r|--repo)
             if [ $# -le 1 ]; then
                 show_usage
                 exit 1
@@ -139,9 +146,9 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,N,q,d,n,h,V -l dir:,arch:,target:,network,quiet,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
+OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,r:,N,q,d,n,h,V -l dir:,arch:,target:,repo:,network,quiet,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
 
-dir=; quiet=; debug=; dry=; arch=; target=; network=
+dir=; quiet=; debug=; dry=; arch=; target=; network=; reponame=
 
 argparse() {
     while :; do
@@ -152,6 +159,7 @@ argparse() {
                 ;;
             -a|--arch) shift; arch="$1";;
             -t|--target) shift; target="$1";;
+            -r|--repo) shift; reponame="$1";;
             -N|--network) network=-n;;
             -q|--quiet) quiet=-q;;
             -d|--debug)
@@ -193,7 +201,8 @@ do_invoke()
         "$@" ${debug:+DEBUG=yes} \
              ${arch:+ARCH="$arch"} \
              ${target:+TARGET="$target"} \
-             ${network:+SHARE_NETWORK=yes}
+             ${network:+SHARE_NETWORK=yes} \
+             ${reponame:+OUTNAME="$reponame"}
 }
 
 invoke()
@@ -257,6 +266,16 @@ else
             [ -n "$pkgs" ] || fatal 'No packages specified\n'
 
             eval "invoke 'install' PKGS=\"$(quote "$pkgs")\" $params"
+            ;;
+        rebuild)
+            if [ $# -gt 0 ]; then
+                pkg="$1"; shift
+                [ "${pkg%=*}" = "$pkg" ] || \
+                    fatal 'Malformed package name: %s\n' "$pkg"
+                invoke 'rebuild' PKG="$pkg" "$@"
+            else
+                fatal 'Source package name is not specified\n'
+            fi
             ;;
         help|doc)
             normal=

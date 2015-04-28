@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.0
+POCKET_VERSION = 0.2.1
 
 
 # Customization section
@@ -78,7 +78,7 @@ INFOPFX=[pocket]
 
 # Output repository name and description
 OUTNAME = pocket
-OUTDESC = Built with the help of Pocket and Hasher (http://github.com/wolneykien/pocket)
+OUTDESC = Built for $(REPO):$(DISTRO) with the help of Pocket and Hasher (http://github.com/wolneykien/pocket)
 BUILDREPO = $(if $(filter pocket,$(OUTNAME)),repo,$(OUTNAME)-repo)
 
 
@@ -454,6 +454,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	   for a in $$(sed -n -e '/^Architectures:/ { s/^[^[:space:]]\+[[:space:]]*//p; q }' $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)/Release); do \
 	       echo "echo \"deb [arch=$$a] file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	   done; \
+	   echo "echo \"deb-src file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	fi
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -586,7 +587,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 ## deleted.
 ##
 ##     If the package source format isn't "native", then the
-## corresponding `.orig.tar.gz` is written of the source tree (`OVER`
+## corresponding `.orig.tar.gz` is created from the source tree (`OVER`
 ## mode disables this). Files and directories specified in the
 ## `SKIPSYNC` configuration variable (or command-line argument) are
 ## not copied into the buildroot. By default the skip list is
@@ -605,6 +606,7 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo 'if [ -z "$$OVER" ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
+	@echo '        rm -fv ../*.orig.tar.gz' >>$(BUILDROOT)/.host/entry
 	@echo '        tar czf ../$$(dpkg-parsechangelog -S Source)_$$(dpkg-parsechangelog -S Version | sed -e "s/-.*\$$//").orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
 	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
@@ -619,7 +621,7 @@ sync-in: $(BUILDROOT)/.buildenv
 ## buildroot directory.
 sync-out: $(BUILDROOT)/.configured
 	$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the package source directory to copy into with 'TO=')))
-	@echo "$(INFOPFX) Copy file from the builder home dir into $(abspath $(TO))"
+	@echo "$(INFOPFX) Update files in $(abspath $(TO)) from the builder home dir"
 	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(abspath $(TO))
 
 ##
@@ -636,7 +638,7 @@ make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
   $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET)) \
   $(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control),$(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control)
-	$(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/*),,$(error Source is empty. Sync-in a source directory first using 'make sync-in'))
+	$(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/*),$,(error Source is empty. Sync-in a source directory first with 'sync-in' action))
 	@echo "$(INFOPFX) Calculating the build requirements..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -711,8 +713,9 @@ cleanpkg:
 	rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'mkdir -p .keep' >>$(BUILDROOT)/.host/entry
-	@echo '[ $$(find -maxdepth 1 -name "*.orig.tar.*" | wc -l) -eq 0 ] || mv *.orig.tar.* .keep' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -rf .keep' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir .keep' >>$(BUILDROOT)/.host/entry
+	@echo '[ $$(find -maxdepth 1 -type f -name "*.orig.tar.*" | wc -l) -eq 0 ] || mv *.orig.tar.* .keep' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -fv *.deb *.dsc *.changes *.tar.*' >>$(BUILDROOT)/.host/entry
 	@echo '[ $$(find .keep/ -maxdepth 1 -name "*.orig.tar.*" | wc -l) -eq 0 ] || mv .keep/*.orig.tar.* ./' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
@@ -731,6 +734,11 @@ cleanpkg:
 ##     The `TARGET=<arch>` parameter can be used to specify the target
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action help for more information.
+##
+##     The `OUTNAME=<repo>` parameter can be used to override the
+## repository name (and therefore, the name of its directory) given
+## at pocket initialization (use `show-config` without parameters to
+## get it).
 buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
@@ -746,17 +754,24 @@ buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	touch $(BUILDROOT)/.buildok
 
 ##
-## * `rebuildpkg`    Make the full build of the Debian package from
-## source. The action is analogous to the `buildpkg` action above
-## but calls `dpkg-buildpackage` without `-nc` option starting the
-## build procedure from its very beginning. This is an intermediate
-## action usually called by `rebuild`.
+## * `rebuildpkg`    Rebuild the named package from its source package.
+## The source package should be available from the repository accumulator
+## (or an other `apt` source list). That usually means that the same
+## package already was built (possibly, for an other architecture).
+## The name of the package is accepted via the `PKG=<package>` parameter.
+## This is an intermediate action usually called by `rebuild`.
 ##
 ##     The `TARGET=<arch>` parameter can be used to specify the target
-## host architecture in a case of cross-build. See the `show-targets`
-## action help for more information.
-rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
-	@echo "$(INFOPFX) Building the package from source..."
+## host architecture in a case of cross-build (see the `show-targets`
+## action help for more information). In that case, *only the
+## architecture-specific* packages are rebuilt.
+##
+##     The `OUTNAME=<repo>` parameter can be used to override the
+## repository name (and therefore, the name of its directory) given
+## at pocket initialization (use `show-config` without parameters to
+## get it).
+rebuildpkg: getsource $(BUILDROOT)/.builddeps
+	@echo "$(INFOPFX) Rebuilding binary packages from source..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
@@ -764,10 +779,28 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 	@echo '    export CONFIG_SITE=/etc/dpkg-cross/cross-config.$(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo '    export DEB_BUILD_OPTIONS=nocheck' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
-	@echo 'dpkg-buildpackage $(if $(TARGET),-a$(TARGET)) -F -us -uc' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg-buildpackage $(if $(TARGET),-a$(TARGET) -B,-b) -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 	touch $(BUILDROOT)/.buildok
+
+##
+## * `getsource`    Gets the named source package from the repository
+## accumulator (or an other `apt` source list) and prepare it for
+## building. The name of the package is accepted via the `PKG=<package>`
+## parameter.
+getsource: $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated
+	$(if $(PKG),,$(error Specify the source package to get using 'PKG='))
+	@echo "$(INFOPFX) Get the package source for: $(PKG)"
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -fv *.deb *.dsc *.changes *.tar.*' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -rf SOURCE' >>$(BUILDROOT)/.host/entry
+	@echo 'apt-get -y --allow-unauthenticated source $(PKG)' >>$(BUILDROOT)/.host/entry
+	@echo "find -maxdepth 1 -type d -name '$(PKG)-*' -exec mv -vf '{}' SOURCE \\;" >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
 
 ##
 ## * `repo`    Import the freshly built package into the package
@@ -777,6 +810,11 @@ rebuildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ## included and the existing ones are updated. This accumulation
 ## system provides the base for incremental builds. The action is
 ## callled automatically by the `build` and `rebuild` actions.
+##
+##     The `OUTNAME=<repo>` parameter can be used to override the
+## repository name (and therefore, the name of its directory) given
+## at pocket initialization (use `show-config` without parameters to
+## get it).
 repo: $(BUILDROOT)/.repodone
 
 $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
@@ -789,7 +827,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	   echo 'cp -a $(INREPODIR)/* $(OUTREPODIR)/' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo 'mkdir -p $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry
-	@echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\\+[[:space:]]*//; s/[[:space:]]/\\n/gp }' | sed -e '/^[[:space:]]*\$$/ d' -e \"s/^all\\\$$/\$$(dpkg --print-architecture)/g\" | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
+	@echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\\+[[:space:]]*//; s/[[:space:]]/\\n/g; p }' | sed -e '/^[[:space:]]*\$$/ d' -e \"s/^all\\\$$/\$$(dpkg --print-architecture)/g\" | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
 	@echo "comps=\"\$$( ( cat *.changes | sed -n -e '/^Files:/,\$$ { s/^[[:space:]]\\+[0-9a-f]\\+[[:space:]]\\+[0-9]\\+[[:space:]]\\+\\([^[:space:]]\\+\\)\\(\\/[^[:space:]]\\+\\)[[:space:]].*\$$/\\1/p }'; if [ -e $(OUTREPODIR)/conf/distributions ]; then sed -n -e '/^Components:/ { s/^Components:[[:space:]]*//; s/[[:space:]]\\+/\\n/g; p; q }' $(OUTREPODIR)/conf/distributions; fi ) | sed -e '/^[[:space:]]*\$$/ d' | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
 	@echo "oldarchs=\"\$$([ ! -e $(OUTREPODIR)/conf/distributions ] || sed -n -e \"/^Architectures:/ { s/^Architectures:[[:space:]]*//; s/[[:space:]]*\$$//; p; q }\" $(OUTREPODIR)/conf/distributions)\"" >>$(BUILDROOT)/.host/entry
 	@echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
@@ -806,22 +844,42 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'archs=' >>$(BUILDROOT)/.host/entry
 	@echo 'for f in *.changes; do' >>$(BUILDROOT)/.host/entry
+	@echo '  mainarch="$${f##*_}"' >>$(BUILDROOT)/.host/entry
+	@echo '  mainarch="$${mainarch%.*}"' >>$(BUILDROOT)/.host/entry
 	@echo "  srcname=\"\$$(sed -n -e '/^Source:/ { s/^Source:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo "  srcver=\"\$$(sed -n -e '/^Version:/ { s/^Version:[[:space:]]*//p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo "  archs=\"\$$(sed -n -e '/^Architecture:/ { s/^Architecture:[[:space:]]*//; s/[[:space:]]*$$//; p; q }' \$$f)\"" >>$(BUILDROOT)/.host/entry
 	@echo '  archfilter=' >>$(BUILDROOT)/.host/entry
+	@echo '  delarchs=' >>$(BUILDROOT)/.host/entry
+	@echo '  numpkgs=$$(reprepro -b $(OUTREPODIR) listfilter $(OUTNAME) "\$$Source (==$$srcname), \$$Architecture (!=source), \$$Architecture (!=$$mainarch)" | wc -l)' >>$(BUILDROOT)/.host/entry
 	@echo '  for a in $$archs; do' >>$(BUILDROOT)/.host/entry
 	@echo '    [ -z "$$archfilter" ] || archfilter="$$archfilter | "' >>$(BUILDROOT)/.host/entry
-	@echo '    if [ "$$a" = "all" ]; then' >>$(BUILDROOT)/.host/entry
-	@echo '      archfilter="$${archfilter}Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
-	@echo '    else' >>$(BUILDROOT)/.host/entry
-	@echo '      archfilter="$${archfilter}\$$Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
-	@echo '    fi' >>$(BUILDROOT)/.host/entry
+	@echo '    [ -z "$$delarchs" ] || delarchs="$$delarchs "' >>$(BUILDROOT)/.host/entry
+	@echo '    case "$$a" in' >>$(BUILDROOT)/.host/entry
+	@echo '      all)' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter}Architecture (==all)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs}all"' >>$(BUILDROOT)/.host/entry
+	@echo '        ;;' >>$(BUILDROOT)/.host/entry
+	@echo '      source)' >>$(BUILDROOT)/.host/entry
+	@echo '        [ $$numpkgs -eq 0 ] || continue' >>$(BUILDROOT)/.host/entry
+	@echo '        echo "No packages for other architectures found. Can safely replace the source package"' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter}\$$Architecture (==source)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs}source"' >>$(BUILDROOT)/.host/entry
+	@echo '        ;;' >>$(BUILDROOT)/.host/entry
+	@echo '      *)' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter}\$$Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs}$$a"' >>$(BUILDROOT)/.host/entry
+	@echo '        ;;' >>$(BUILDROOT)/.host/entry
+	@echo '    esac' >>$(BUILDROOT)/.host/entry
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '' >>$(BUILDROOT)/.host/entry
-	@echo '  echo "Remove $$srcname packages from architectures: $$archs"' >>$(BUILDROOT)/.host/entry
+	@echo '  echo "Remove $$srcname packages from architectures: $$delarchs"' >>$(BUILDROOT)/.host/entry
 	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname), $$archfilter"' >>$(BUILDROOT)/.host/entry
-	@echo '  echo "Add $$srcname $$srcver packages to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry
+	@echo '  if [ $$numpkgs -eq 0 ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '    echo "Add $$srcname $$srcver source package to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry
+	@echo '    reprepro -b $(OUTREPODIR) --ignore=wrongdistribution includedsc $(OUTNAME) $${f%_*}.dsc' >>$(BUILDROOT)/.host/entry
+	@echo '  fi' >>$(BUILDROOT)/.host/entry
+	@echo '  echo "Add $$srcname $$srcver binary packages to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry
 	@echo '  reprepro -b $(OUTREPODIR) --ignore=wrongdistribution include $(OUTNAME) $$f' >>$(BUILDROOT)/.host/entry
 	@echo 'done' >>$(BUILDROOT)/.host/entry
 	@echo 'chmod -R a+rX $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
@@ -849,7 +907,7 @@ clean-repo: $(BUILDROOT)/.configured
 ##
 ## * `build`    Start or continue building the Debian package from
 ## source and import the result into the `repo` repository.
-## Calls `buildpkg`, then `repo`.
+## Invokes `buildpkg`, then `repo`.
 ##
 ##     The `TARGET=<arch>` parameter can be used to specify the target
 ## host architecture in a case of cross-build. See the `show-targets`
@@ -857,13 +915,15 @@ clean-repo: $(BUILDROOT)/.configured
 build: buildpkg repo
 
 ##
-## * `rebuild`    Make the full build of the Debian package from
-## source and import the result into the `repo` repository.
-## Calls `rebuildpkg`, then `repo`.
+## * `rebuildpkg`    Rebuild the named package from its source package
+## and import the result into the `repo` repository. Invokes `rebuildpkg`,
+## then `repo`. The name of the package is accepted via the `PKG=<package>`
+## parameter.
 ##
-##     The `TARGET=<arch>` parameter can be used to specify the
-## target host architecture in a case of cross-build. See the
-## `show-targets` action help for more information.
+##     The `TARGET=<arch>` parameter can be used to specify the target
+## host architecture in a case of cross-build (see the `show-targets`
+## action help for more information). In that case, *only the
+## architecture-specific* packages are rebuilt.
 rebuild: rebuildpkg repo
 
 ##
