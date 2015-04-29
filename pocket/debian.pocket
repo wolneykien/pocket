@@ -358,7 +358,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	rm -fv $(BUILDROOT)/.testenv
 	rm -fv $(BUILDROOT)/.installrepodone
-	rm -fv $(BUILDROOT)/.builddeps
+	rm -fv $(BUILDROOT)/.builddeps*
 	rm -fv $(BUILDROOT)/.buildenv
 	rm -fv $(BUILDROOT)/.updated
 	rm -fv $(BUILDROOT)/.configured
@@ -604,15 +604,21 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rsync -a --inplace $$DELETE $(INDIR)/SOURCE ./' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -z "$$OVER" ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '    rm -fv .build-deps*.deb' >>$(BUILDROOT)/.host/entry
 	@echo '    cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
 	@echo '        rm -fv ../*.orig.tar.gz' >>$(BUILDROOT)/.host/entry
 	@echo '        tar czf ../$$(dpkg-parsechangelog -S Source)_$$(dpkg-parsechangelog -S Version | sed -e "s/-.*\$$//").orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
 	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
+	@echo '    rm -fv .build-deps*.deb' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	@case "$(OVER)" in \
+	    0|no|NO|false|FALSE);; \
+	    *) rm -fv $(BUILDROOT)/.builddeps*;; \
+	esac
 
 ##
 ## * `sync-out`    Update the package source in the given directory from
@@ -633,9 +639,9 @@ sync-out: $(BUILDROOT)/.configured
 ##     The `TARGET=<arch>` parameter can be used to specify the target
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
-make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
+make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb
 
-$(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
+$(BUILDROOT)$(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb: $(BUILDROOT)/.buildenv \
   $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET)) \
   $(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control),$(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control)
 	$(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/*),$,(error Source is empty. Sync-in a source directory first with 'sync-in' action))
@@ -652,9 +658,8 @@ $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb: $(BUILDROOT)/.buildenv \
 	@echo 'touch -r /tmp/control.orig debian/control' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo '[ $$ret -eq 0 ]' >>$(BUILDROOT)/.host/entry
-	@echo 'mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
-	@echo '[ -f $(BUILDER_HOME)/.build-deps.deb ]' >>$(BUILDROOT)/.host/entry
-	@echo 'touch $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@echo 'mv -vf *build-deps*.deb ../.build-deps$(if $(TARGET),.$(TARGET)).deb' >>$(BUILDROOT)/.host/entry
+	@echo 'touch $(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
@@ -689,12 +694,16 @@ gencontrol:
 ## packages, specified in the `Build-Depends` control file field.
 ## This procedure is supported by the special meta-package that is
 ## prepared by the (automatically called) `make-depspkg` action.
-install-builddeps: $(BUILDROOT)/.builddeps
+##
+##     The `TARGET=<arch>` parameter can be used to specify the target
+## host architecture in a case of cross-build. See the `show-targets`
+## action for more information.
+install-builddeps: $(BUILDROOT)/.builddeps$(if $(TARGET),.$(TARGET))
 
-$(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
+$(BUILDROOT)/.builddeps$(if $(TARGET),.$(TARGET)): $(BUILDROOT)$(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb
 	@echo "$(INFOPFX) Installing the build requirements..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
-	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -702,7 +711,16 @@ $(BUILDROOT)/.builddeps: $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	@rm -fv $(BUILDROOT)/.builddeps*
 	touch $@
+
+clean-builddeps:
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -fv .build-deps*.deb' >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	@rm -fv $(BUILDROOT)/.builddeps*
 
 ##
 ## * `cleanpkg`    Clean (delete) the files produced by the last
@@ -739,7 +757,7 @@ cleanpkg:
 ## repository name (and therefore, the name of its directory) given
 ## at pocket initialization (use `show-config` without parameters to
 ## get it).
-buildpkg: $(BUILDROOT)/.builddeps cleanpkg
+buildpkg: $(BUILDROOT)/.builddeps$(if $(TARGET),.$(TARGET)) cleanpkg
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -770,7 +788,7 @@ buildpkg: $(BUILDROOT)/.builddeps cleanpkg
 ## repository name (and therefore, the name of its directory) given
 ## at pocket initialization (use `show-config` without parameters to
 ## get it).
-rebuildpkg: getsource $(BUILDROOT)/.builddeps
+rebuildpkg: getsource clean-builddeps install-builddeps
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
