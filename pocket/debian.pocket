@@ -359,6 +359,7 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	rm -fv $(BUILDROOT)/.testenv
 	rm -fv $(BUILDROOT)/.installrepodone
 	rm -fv $(BUILDROOT)/.buildenv
+	rm -fv $(BUILDROOT)/.cross
 	rm -fv $(BUILDROOT)/.updated
 	rm -fv $(BUILDROOT)/.configured
 	rm -fv $(BUILDROOT)/.installed
@@ -408,6 +409,7 @@ update: rm-updated $(BUILDROOT)/.updated
 
 rm-updated:
 	@if [ -e $(BUILDROOT)/.updated ]; then \
+	  rm -fv $(BUILDROOT)/.cross; \
 	  rm -fv $(BUILDROOT)/.updated;\
 	  echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
 	  echo 'rm -fv /etc/resolv.conf' >>$(BUILDROOT)/.host/entry; \
@@ -654,7 +656,7 @@ gencontrol:
 ##     The `TARGET=<arch>` parameter can be used to specify the target
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
-install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) gencontrol
+install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/.buildenv$(if $(TARGET),.$(TARGET)) gencontrol
 	@echo "$(INFOPFX) Check and install the build requirements..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
