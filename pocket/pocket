@@ -22,8 +22,9 @@ PROG_VERSION="0.2.0"
 PROG_PATH="${0%/*}"
 
 . "$PROG_PATH/pocket-functions.sh"
-
+load_config
 POCKETDIR="${POCKETDIR:-$DEFPOCKETDIR}"
+
 MAKE="${MAKE:-make}"
 
 show_help() {
