@@ -489,7 +489,7 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	touch $@
 
 $(BUILDROOT)/.cross:
-	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) update CROSS=yes
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) update CROSS=yes ARCH=$(ARCH) TARGET=$(TARGET) BUILDROOT=$(BUILDROOT)
 
 
 ##
@@ -713,7 +713,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 ## `*.dsc`, `*.changes` and `*.tar.*`.
 cleanpkg:
 	@echo "$(INFOPFX) Deleting all built packages..."
-	rm -f $(BUILDROOT)/.buildok
+	@rm -fv $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf .keep' >>$(BUILDROOT)/.host/entry
@@ -744,6 +744,7 @@ cleanpkg:
 ## get it).
 buildpkg: install-builddeps cleanpkg
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
+	@rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
@@ -754,7 +755,8 @@ buildpkg: install-builddeps cleanpkg
 	@echo 'dpkg-buildpackage $(if $(TARGET),-a$(TARGET)) -F -nc -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
-	touch $(BUILDROOT)/.buildok
+	@touch $(BUILDROOT)/.buildok
+	@$(MAKE) -si -f $(firstword $(MAKEFILE_LIST)) filecheck ARCH=$(ARCH) BUILDROOT=$(BUILDROOT)
 
 ##
 ## * `rebuildpkg`    Rebuild the named package from its source package.
@@ -775,6 +777,7 @@ buildpkg: install-builddeps cleanpkg
 ## get it).
 rebuildpkg: getsource install-builddeps
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
+	@rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
@@ -785,10 +788,11 @@ rebuildpkg: getsource install-builddeps
 	@echo 'dpkg-buildpackage $(if $(TARGET),-a$(TARGET) -B,-b) -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
-	touch $(BUILDROOT)/.buildok
+	@touch $(BUILDROOT)/.buildok
+	@$(MAKE) -si -f $(firstword $(MAKEFILE_LIST)) filecheck ARCH=$(ARCH) BUILDROOT=$(BUILDROOT)
 
 ##
-## * `getsource`    Gets the named source package from the repository
+## * `getsource`    Get the named source package from the repository
 ## accumulator (or an other `apt` source list) and prepare it for
 ## building. The name of the package is accepted via the `PKG=<package>`
 ## parameter.
@@ -801,6 +805,28 @@ getsource: $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated
 	@echo 'rm -rf SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo 'apt-get -y --allow-unauthenticated source $(PKG)' >>$(BUILDROOT)/.host/entry
 	@echo "find -maxdepth 1 -type d -name '$(PKG)-*' -exec mv -vf '{}' SOURCE \\;" >>$(BUILDROOT)/.host/entry
+	@chmod 0755 $(BUILDROOT)/.host/entry
+	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+
+##
+## * `filecheck`    Check if all of the installed files are packaged.
+## If some files are not found in `*.deb` files, then a warning
+## message is printed and exit status is non-zero. However, when
+## invoked automatically from the `buildpkg` and `rebuildpkg` actions,
+## the exit status is always zero: sometimes it is normal to have some
+## files unpackaged.
+filecheck: $(BUILDROOT)/.buildok
+	@echo "$(INFOPFX) Compare the installed and packaged set of files..."
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'cd SOURCE/debian/tmp' >>$(BUILDROOT)/.host/entry
+	@echo 'find | sort -u >$(BUILDER_HOME)/.filelist' >>$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
+	@echo 'for f in ~/*.deb; do dpkg -c $$f; done | sed -e '\''s,^\([^[:space:]]\+[[:space:]]\+\)\{5\}\./\(.*\)$$,./\2,'\'' -e '\''s/[[:space:]]\+->.*$$//'\'' -e '\''s,/$$,,'\'' -e '\''/^[[:space:]]*$$/ d'\'' | sort -u >~/.filelist.indeb' >>$(BUILDROOT)/.host/entry
+	@echo 'if diff .filelist .filelist.indeb | grep "^<"; then' >>$(BUILDROOT)/.host/entry
+	@echo '  echo "*** WARNING: There are unpackaged files! ***"' >>$(BUILDROOT)/.host/entry
+	@echo '  exit 1' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 
