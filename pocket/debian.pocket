@@ -358,7 +358,6 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
 	rm -fv $(BUILDROOT)/.testenv
 	rm -fv $(BUILDROOT)/.installrepodone
-	rm -fv $(BUILDROOT)/.builddeps*
 	rm -fv $(BUILDROOT)/.buildenv
 	rm -fv $(BUILDROOT)/.updated
 	rm -fv $(BUILDROOT)/.configured
@@ -604,21 +603,15 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rsync -a --inplace $$DELETE $(INDIR)/SOURCE ./' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -z "$$OVER" ]; then' >>$(BUILDROOT)/.host/entry
-	@echo '    rm -fv .build-deps*.deb' >>$(BUILDROOT)/.host/entry
 	@echo '    cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
 	@echo '        rm -fv ../*.orig.tar.gz' >>$(BUILDROOT)/.host/entry
 	@echo '        tar czf ../$$(dpkg-parsechangelog -S Source)_$$(dpkg-parsechangelog -S Version | sed -e "s/-.*\$$//").orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
 	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
-	@echo '    rm -fv .build-deps*.deb' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
-	@case "$(OVER)" in \
-	    0|no|NO|false|FALSE);; \
-	    *) rm -fv $(BUILDROOT)/.builddeps*;; \
-	esac
 
 ##
 ## * `sync-out`    Update the package source in the given directory from
@@ -630,41 +623,6 @@ sync-out: $(BUILDROOT)/.configured
 	@echo "$(INFOPFX) Update files in $(abspath $(TO)) from the builder home dir"
 	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/SOURCE/ $(abspath $(TO))
 
-##
-## * `make-depspkg`    Prepare the special meta-package to install the
-## build reqisites (dependencies). See the `install-builddeps` action
-## help for more information. The resulting meta package is placed into
-## the builder home /usr/src.
-##
-##     The `TARGET=<arch>` parameter can be used to specify the target
-## host architecture in a case of cross-build. See the `show-targets`
-## action for more information.
-make-depspkg: $(BUILDROOT)$(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb
-
-$(BUILDROOT)$(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb: $(BUILDROOT)/.buildenv \
-  $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET)) \
-  $(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control),$(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control)
-	$(if $(wildcard $(BUILDROOT)$(BUILDER_HOME)/SOURCE/*),$,(error Source is empty. Sync-in a source directory first with 'sync-in' action))
-	@echo "$(INFOPFX) Calculating the build requirements..."
-	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
-	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
-	@echo 'cp -a debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
-	@echo 'touch -r debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
-	@echo 'sed -i -e "/^#/ d" debian/control' >>$(BUILDROOT)/.host/entry
-	@echo 'ret=0' >>$(BUILDROOT)/.host/entry
-	@echo 'mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
-	@echo 'cp -a /tmp/control.orig debian/control' >>$(BUILDROOT)/.host/entry
-	@echo 'touch -r /tmp/control.orig debian/control' >>$(BUILDROOT)/.host/entry
-	@echo 'rm -f /tmp/control.orig' >>$(BUILDROOT)/.host/entry
-	@echo '[ $$ret -eq 0 ]' >>$(BUILDROOT)/.host/entry
-	@echo 'mv -vf *build-deps*.deb ../.build-deps$(if $(TARGET),.$(TARGET)).deb' >>$(BUILDROOT)/.host/entry
-	@echo 'touch $(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb' >>$(BUILDROOT)/.host/entry
-	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
-
-$(BUILDROOT)$(BUILDER_HOME)/SOURCE/debian/control: gencontrol
-	@/bin/true
 
 gencontrol:
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
@@ -692,35 +650,60 @@ gencontrol:
 ## * `install-builddeps`    Install the packages that are required
 ## to build the target package from the source code. Installs all the
 ## packages, specified in the `Build-Depends` control file field.
-## This procedure is supported by the special meta-package that is
-## prepared by the (automatically called) `make-depspkg` action.
 ##
 ##     The `TARGET=<arch>` parameter can be used to specify the target
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
-install-builddeps: $(BUILDROOT)/.builddeps$(if $(TARGET),.$(TARGET))
-
-$(BUILDROOT)/.builddeps$(if $(TARGET),.$(TARGET)): $(BUILDROOT)$(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb
-	@echo "$(INFOPFX) Installing the build requirements..."
-	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
-	@echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps$(if $(TARGET),.$(TARGET)).deb' >>$(BUILDROOT)/.host/entry
-	@if [ -n "$$http_proxy" ]; then \
-	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
-	 fi
-	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry
-	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
-	@rm -fv $(BUILDROOT)/.builddeps*
-	touch $@
-
-clean-builddeps:
+install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) gencontrol
+	@echo "$(INFOPFX) Check and install the build requirements..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'rm -fv .build-deps*.deb' >>$(BUILDROOT)/.host/entry
+	@echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry
+	@echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry
+	@echo '  echo "$(INFOPFX) There are unmet dependencies. Preparing deps meta-package..."' >>$(BUILDROOT)/.host/entry
+	@echo '  cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry
+	@if [ -n "$(TARGET)" ]; then \
+	   echo '  sed -i -e '\''/^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^):]*)\)\?,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^):]*)\)\?$$/ \1:$(TARGET)\2/ }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
+	fi
+	@echo '  sed -i -e '\''/^Build-Depends[^:]*:/ { s/:native//g; }'\'' -e '\''/^#/ d'\'' debian/control' >>$(BUILDROOT)/.host/entry
+	@echo '  ret=0' >>$(BUILDROOT)/.host/entry
+	@echo '  mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
+	@echo '  mv ../.control.orig debian/control' >>$(BUILDROOT)/.host/entry
+	@echo '  if [ $$ret -eq 0 ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '    mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@echo '  fi' >>$(BUILDROOT)/.host/entry
+	@echo '  rm -fv *build-deps*.deb' >>$(BUILDROOT)/.host/entry
+	@echo '  exit $$ret' >>$(BUILDROOT)/.host/entry
+	@echo 'else' >>$(BUILDROOT)/.host/entry
+	@echo '  rm -f ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
-	@rm -fv $(BUILDROOT)/.builddeps*
+	@if [ -e $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb ]; then \
+	   echo '$(INFOPFX) The deps meta-package was built. Install it to satisfy the dependencies...'; \
+	   echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
+	   if [ -n "$$http_proxy" ]; then \
+	     echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
+	     echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
+	   fi; \
+	   echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry; \
+	   echo 'apt-get install -f -y --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry; \
+	   chmod 0755 $(BUILDROOT)/.host/entry; \
+	   share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	   echo "$(INFOPFX) Check the build requirements again..."; \
+	   echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
+	   echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry; \
+	   echo 'cd SOURCE' >>$(BUILDROOT)/.host/entry; \
+	   echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry; \
+	   echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry; \
+	   echo '  exit 1' >>$(BUILDROOT)/.host/entry; \
+	   echo 'fi' >>$(BUILDROOT)/.host/entry; \
+	   chmod 0755 $(BUILDROOT)/.host/entry; \
+	   $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	else \
+	   echo '$(INFOPFX) Build requirements are met. Ready to build'; \
+	fi
+
 
 ##
 ## * `cleanpkg`    Clean (delete) the files produced by the last
@@ -757,7 +740,7 @@ cleanpkg:
 ## repository name (and therefore, the name of its directory) given
 ## at pocket initialization (use `show-config` without parameters to
 ## get it).
-buildpkg: $(BUILDROOT)/.builddeps$(if $(TARGET),.$(TARGET)) cleanpkg
+buildpkg: install-builddeps cleanpkg
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -788,7 +771,7 @@ buildpkg: $(BUILDROOT)/.builddeps$(if $(TARGET),.$(TARGET)) cleanpkg
 ## repository name (and therefore, the name of its directory) given
 ## at pocket initialization (use `show-config` without parameters to
 ## get it).
-rebuildpkg: getsource clean-builddeps install-builddeps
+rebuildpkg: getsource install-builddeps
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -1076,7 +1059,7 @@ doc:
 	@echo
 
 
-.PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out make-depspkg install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc docextract show-targets show-config default
+.PHONY: bootstrap download extract clean clean-cache update install install-buildenv shell sync-in sync-out install-builddeps buildpkg build rebuildpkg rebuild cleanpkg clean-repo repo install-repo reinstall-repo install-clean install-shell help doc docextract show-targets show-config default
 
 ##
 ## Examples
