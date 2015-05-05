@@ -667,7 +667,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@if [ -n "$(TARGET)" ]; then \
 	   echo '  sed -i -e '\''/^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^):]*)\)\?,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^):]*)\)\?$$/ \1:$(TARGET)\2/ }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
 	fi
-	@echo '  sed -i -e '\''/^Build-Depends[^:]*:/ { s/:native//g; }'\'' -e '\''/^#/ d'\'' debian/control' >>$(BUILDROOT)/.host/entry
+	@echo '  sed -i -e '\''/^Build-Depends[^:]*:/ { s/:native//g; s/:all//g; }'\'' -e '\''/^#/ d'\'' debian/control' >>$(BUILDROOT)/.host/entry
 	@echo '  ret=0' >>$(BUILDROOT)/.host/entry
 	@echo '  mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
 	@echo '  mv ../.control.orig debian/control' >>$(BUILDROOT)/.host/entry
