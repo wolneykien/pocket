@@ -95,10 +95,13 @@ Action wrappers:
 
   doc [subject]     same as the above but invokes the \`doc\` action;
 
-  sync-in [-o|--over] <from>    invokes the Pocketfile \`sync-in\`
-                              action with <from> directory path as
-                    FROM=<from>; the \`-o|--over\` option corresponds
-                    to the \`OVER=yes\` parameter;
+  sync-in [-o|--over|-c|--compose] <from>  invokes the Pocketfile
+                                          \`sync-in\` action with
+                    <from> directory path as FROM=<from>; the
+                    \`-o|--over\` option corresponds to the
+                    \`OVER=yes\` parameter; the \`-c|--compose\`
+                    option corresponds to the \`COMPOSE=yes\`
+                    parameter;
 
   sync-out <to>     complementary to the above action supplying <to>
                     directory as TO=<to>;
@@ -291,13 +294,14 @@ else
             fi
             ;;
         sync-in)
-            OPTS=`getopt -n "$PROG $action" -o o -l over -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
+            OPTS=`getopt -n "$PROG $action" -o o,c -l over,compose -- "$@"` || ( ret=$?; show_usage; exit $ret ) >&2
             eval set -- "$OPTS"
 
-            over=
+            over=; compose=
             while :; do
                 case "$1" in
                     -o|--over) over=-o;;
+                    -c|--compose) compose=-c;;
                     --) shift; break;;
                     *)
                         write_error 'Unrecognized option: %s\n' "$1"
@@ -316,7 +320,8 @@ else
             [ -n "$dir" ] || \
                 fatal 'Source directory is not specified\n'
 
-            invoke 'sync-in' FROM="$dir" "$@" ${over:+OVER=yes}
+            invoke 'sync-in' FROM="$dir" "$@" \
+                ${over:+OVER=yes} ${compose:+COMPOSE=yes}
             ;;
         sync-out)
             dir=

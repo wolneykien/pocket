@@ -580,12 +580,17 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 ##
 ## * `sync-in`    Synchronize the buildroot package source directory
 ## FROM the given directory outside the buildroot. By default, after
-## the action the buildroot package source directory /usr/src/SOURCE
+## the action the buildroot package source directory `/usr/src/SOURCE`
 ## is identical to the directory given in the `FROM=<path>` parameter.
 ## The existing files that are not present in the FROM directory *are
-## removed*. However, with the optional parameter `OVER=yes` the
-## files are just copied over the existing ones and no files are
-## deleted.
+## removed*.
+##
+##     With the optional parameter `OVER=yes` the files are copied
+## over the existing ones and no files are deleted.
+##
+##     The `COMPOSE=yes` optional parameter turns on the source tree
+## composition mode: for each symbolic link in the `FROM` directory
+## the corresponding link target is copied into the `/usr/src/SOURCE`.
 ##
 ##     If the package source format isn't "native", then the
 ## corresponding `.orig.tar.gz` is created from the source tree (`OVER`
@@ -596,6 +601,20 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 sync-in: $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
 	rsync -a --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(abspath $(FROM))/ $(BUILDROOT)$(INDIR)/SOURCE
+	case "$(COMPOSE)" in \
+	    0|no|NO|false|FALSE) \
+	        ;; \
+	    ?*) \
+	        cd $(abspath $(FROM)); \
+	        find  -mindepth 1 -maxdepth 1 -type l | \
+	        while read f; do \
+	            rm "$(abspath $(BUILDROOT))$(INDIR)/SOURCE/$${f#./}"; \
+	            rsync -a --inplace \
+	                "$$(readlink "$$f")/" \
+	                "$(abspath $(BUILDROOT))$(INDIR)/SOURCE/$${f#./}/"; \
+	        done; \
+	        ;; \
+	esac
 	@echo "$(INFOPFX) Copy files from $(abspath $(FROM)) into the builder home dir"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'OVER=$(OVER)' >>$(BUILDROOT)/.host/entry
