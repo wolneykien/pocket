@@ -1,4 +1,11 @@
 
+bin_SCRIPTS = pocket pocket-init
+bin_DATA = pocket-functions.sh
+man1_MANS = pocket.1 pocket-init.1
+
+confdir = $(sysconfdir)/pocket
+conf_DATA = pocket.conf debian.repo debian.pocket
+
 pocket_init_DESC = pocket chroot initialization and configuration tool
 
 %.inc: %.md
