@@ -1,2 +1,3 @@
-etc/pocket/*.conf
-etc/pocket/*.repo
+etc/pocket/pocket.conf
+etc/pocket/debian.repo
+etc/pocket/debian.pocket

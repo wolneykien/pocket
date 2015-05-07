@@ -38,7 +38,9 @@ Pocketfile doesn't exist. The actiion arguments (i.e.
 \`VAR=VALUE\` pairs are passed to the Pocketfile as is.
 
 Use \`$PROG init\` to initialize the empty pocket and
-\`$PROG init --help\` for its usage information.
+\`$PROG init --help\` for its usage information. After a pocket is
+initialized use `pocket help` and `pocket doc` to get the help and
+documentation.
 
 Options:
 

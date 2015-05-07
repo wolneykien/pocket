@@ -11,10 +11,11 @@ AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE([enable])
 
 # Checks for programs.
+AC_PROG_LN_S
 AC_CHECK_PROG(ronn,ronn,ronn)
-[ -n "$ronn" ] || AC_MSG_ERROR([ronn program not found])
+test -n "$ronn" || AC_MSG_ERROR([ronn program not found])
 AC_CHECK_PROG(help2man,help2man,help2man)
-[ -n "$help2man" ] || AC_MSG_ERROR([help2man program not found])
+test -n "$help2man" || AC_MSG_ERROR([help2man program not found])
 
 # Output
 AC_CONFIG_FILES([Makefile])
