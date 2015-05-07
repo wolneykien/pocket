@@ -2,7 +2,8 @@
 bin_SCRIPTS = pocket pocket-init
 man1_MANS = pocket.1 pocket-init.1
 
-mypkglibexecdir = $(patsubst %/$(PACKAGE),%,$(libexecdir))/$(PACKAGE)
+mylibexecdir = $(patsubst %/$(PACKAGE),%,$(libexecdir))
+mypkglibexecdir = $(mylibexecdir)/$(PACKAGE)
 mypkglibexec_SCRIPTS = pocket-functions.sh
 
 confdir = $(sysconfdir)/pocket
@@ -33,3 +34,6 @@ install-exec-hook:
 	chmod 0644 $(DESTDIR)$(mypkglibexecdir)/pocket-functions.sh
 	$(LN_S) -f $(mypkglibexecdir)/pocket-functions.sh \
 	           $(DESTDIR)$(bindir)/pocket-functions.sh
+
+install-data-hook:
+	sed -i -e 's,/usr/libexec,$(mylibexecdir),g' $(DESTDIR)$(confdir)/pocket.conf

@@ -12,6 +12,7 @@ AM_MAINTAINER_MODE([enable])
 
 # Checks for programs.
 AC_PROG_LN_S
+AC_PROG_SED
 AC_CHECK_PROG(ronn,ronn,ronn)
 test -n "$ronn" || AC_MSG_ERROR([ronn program not found])
 AC_CHECK_PROG(help2man,help2man,help2man)
