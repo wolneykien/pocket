@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.2
+POCKET_VERSION = 0.2.3
 
 
 # Customization section
@@ -116,14 +116,15 @@ USERSHELL = /bin/bash
 # -----------------------------------
 
 REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
-DISTRO = $(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%, $(COMPONENTS))))))
-USER_DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%, $(COMPONENTS)))
+DISTRO = $(if $(filter $(REPO):%,$(COMPONENTS)),$(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%,$(COMPONENTS)))))),$($(REPO)_DISTRO))
+USER_DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%,$(COMPONENTS)))
 DISTCOMPS = $(if $(USER_DISTCOMPS),$(USER_DISTCOMPS),$(if $($(REPO)_COMPONENTS),$($(REPO)_COMPONENTS)))
 SYSPKGLIST += $(if $($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_INITIAL_PACKAGES))
 NOSYSPKGLIST += $(if $($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_EXCLUDE_PACKAGES))
 BUILDPKGLIST += $(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES))
 TESTPKGLIST += $(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES))
 
+OVERLAYS = $(sort $(filter-out $(REPO),$(filter-out $(REPO):$(DISTRO),$(filter-out $(REPO):$(DISTRO)/%, $(COMPONENTS)))))
 
 # Buildroot layout
 # ----------------
@@ -442,7 +443,8 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
-	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(DISTRO).list' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(REPO)-$(DISTRO).list' >>$(BUILDROOT)/.host/entry
+	$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(ovl)_DISTRO)),@echo 'echo "deb $($(ovl)_MIRROR) $(ovldist) $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(ovl)_$(ovldist)_COMPONENTS),$($(ovl)_$(ovldist)_COMPONENTS),$($(ovl)_COMPONENTS)))" >/etc/apt/sources.list.d/$(ovl)-$(ovldist).list' >>$(BUILDROOT)/.host/entry;))
 	@if [ -n "$(CROSS)" -a -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
 	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
 	fi
@@ -1056,6 +1058,7 @@ show-config:
 	@echo 'Distro: $(REPO):$(DISTRO)'
 	@echo 'Mirror: $($(REPO)_MIRROR)'
 	@echo 'Components: $(DISTCOMPS)'
+	$(if $(OVERLAYS),@echo 'Overlays: $(OVERLAYS)')
 	@echo 'Architecture: $(if $(ARCH),$(ARCH),$(shell dpkg --print-architecture))'
 	@echo 'System variant: $(VARIANT)'
 	@echo 'System package list: $(SYSPKGLIST)'

@@ -117,7 +117,7 @@ if [ ! -f "$pocketfile" ]; then
     fi
 
     # Lookup the template
-    template="$(find_config "$flavour.pocket")"
+    template="$(find_config "$flavour.pocket" ||:)"
     [ -n "$template" ] || \
         fatal 'Template of the flavour "%s" not found\n' \
               "$flavour"
@@ -152,10 +152,11 @@ if [ $# -gt 0 ]; then
     for comp in "$@"; do echo "${comp%%:*}"; done | \
         sort -u | \
         while read repo; do
-            repoconf="$(find_config "$repo.repo")"
+            repoconf="$(find_config "$repo.repo" ||:)"
             [ -n "$repoconf" ] || \
                 fatal 'Configuration file for repository "%s" not found\n' \
-                "$repo"
+                      "$repo"
+            echo >>"$pocketfile"
             cat "$repoconf" >>"$pocketfile"
         done
 fi
