@@ -1,0 +1,9 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+
+Files: *
+Copyright: 2015 Paul Wolneykien <manowar@altlinux.org>
+License: GPL-3.0+
+
+Files: debian/*
+Copyright: 2015 Paul Wolneykien <manowar@altlinux.org>
+License: GPL-3.0+

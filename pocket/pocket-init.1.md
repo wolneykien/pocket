@@ -65,4 +65,4 @@ with new repository configuration use `pocket-init -u`. For example:
 SEE ALSO
 --------
 
-pocket(1), hasher-priv(8)
+pocket(1), hasher-priv(8), hasher-useradd(8)

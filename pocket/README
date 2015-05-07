@@ -1,5 +1,5 @@
-Pocket --- a compact package building system
-============================================
+Pocket --- a compact package build system
+=========================================
 
 Pocket provides a compact package building environment with
 non-privileged user access. It uses `hasher-priv` for environment

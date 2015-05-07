@@ -1,0 +1,13 @@
+Source: pocket
+Section: main/devel
+Priority: extra
+Maintainer: Paul Wolneykien <manowar@altlinux.org>
+Build-Depends: debhelper (>= 8.0.0), help2man, ruby-ronn
+Standards-Version: 3.9.2
+Homepage: http://metrotek.spb.ru/
+
+Package: pocket
+Section: main/devel
+Architecture: all
+Depends: make, coreutils, hasher-priv, ${misc:Depends}
+Description: A compact package build system with unprivileged access

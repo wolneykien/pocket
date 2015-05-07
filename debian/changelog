@@ -1,0 +1,5 @@
+pocket (0.2.3-1) experimental; urgency=low
+
+  * Initial release for Debian GNU/Linux.
+
+ -- Paul Wolneykien <manowar@altlinux.org>  Thu, 07 May 2015 16:45:00 +0300

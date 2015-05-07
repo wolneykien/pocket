@@ -1,0 +1,37 @@
+2015-05-07  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.3.
+	* debian.pocket: Basic overlay support.
+	* Autotools files.
+	* ChangeLog.
+	* Manual pages.
+	* Fixed some bugs.
+
+2015-04-30  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.2.
+	* debian.pocket: Better support for build requirements.
+	* Fixed some bugs.
+
+2015-04-28  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.1.
+	* pocket: `pocket` main util.
+	* debian.pocket: Keep repository consistence: make `rebuild`
+	  action to work with deb-src sources.
+	* debian.pocket: Mult-paragraph docs.
+	* debian.pocket: Little example in the docs.
+	* Fixed some bugs.
+
+2015-04-22  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.0.
+	* debian.pocket: Inline docs.
+	* debian.pocket: Multi-arch repository.
+	* debian.pocket: Cross-compile building.
+	* debian.pocket: Debian Jessie support (no systemd!)
+	* Fixed some bugs.
+
+2014-12-29  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.1.0.
