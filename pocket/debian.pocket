@@ -629,7 +629,7 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo '    cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
 	@echo '        rm -fv ../*.orig.tar.gz' >>$(BUILDROOT)/.host/entry
-	@echo '        tar czf ../$$(dpkg-parsechangelog -S Source)_$$(dpkg-parsechangelog -S Version | sed -e "s/-.*\$$//").orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
+	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''s/^Version:[[:space:]]\+//p'\'' | sed -e "s/-.*\$$//").orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
 	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
@@ -842,7 +842,7 @@ filecheck: $(BUILDROOT)/.buildok
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ ! -d SOURCE/debian/tmp ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '  cd SOURCE' >>$(BUILDROOT)/.host/entry
-	@echo '  cd debian/$$(dpkg-parsechangelog -S Source)' >>$(BUILDROOT)/.host/entry
+	@echo '  cd debian/$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')' >>$(BUILDROOT)/.host/entry
 	@echo 'else' >>$(BUILDROOT)/.host/entry
 	@echo '  cd SOURCE/debian/tmp' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
