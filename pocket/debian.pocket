@@ -1018,7 +1018,7 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	 fi
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
+	-share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
