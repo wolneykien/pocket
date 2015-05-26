@@ -1,3 +1,11 @@
+2015-05-25  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.4.
+	* debian.pocket: Fix/backport: Conventional use of
+	                 `dpkg-parsechangelog`.
+	* debian.pocket: Ignore errors in `install-repo` to make
+	                 `install-shell` always possible.
+
 2015-05-07  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.3.

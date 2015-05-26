@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([pocket], [0.2.3], [manowar@altlinux.org])
+AC_INIT([pocket], [0.2.4], [manowar@altlinux.org])
 
 AC_CONFIG_SRCDIR([pocket-functions.sh])
 AC_CONFIG_MACRO_DIR([m4])
