@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.4
+POCKET_VERSION = 0.2.5
 
 
 # Customization section
@@ -444,7 +444,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(REPO)-$(DISTRO).list' >>$(BUILDROOT)/.host/entry
-	$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(ovl)_DISTRO)),@echo 'echo "deb $($(ovl)_MIRROR) $(ovldist) $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(ovl)_$(ovldist)_COMPONENTS),$($(ovl)_$(ovldist)_COMPONENTS),$($(ovl)_COMPONENTS)))" >/etc/apt/sources.list.d/$(ovl)-$(ovldist).list' >>$(BUILDROOT)/.host/entry;))
+	$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(subst -,_,$(ovl))_DISTRO)),@echo 'echo "deb $($(subst -,_,$(ovl))_MIRROR) $(ovldist) $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_COMPONENTS)))" >/etc/apt/sources.list.d/$(ovl)-$(ovldist).list' >>$(BUILDROOT)/.host/entry;))
 	@if [ -n "$(CROSS)" -a -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
 	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
 	fi

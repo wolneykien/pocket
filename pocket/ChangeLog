@@ -1,3 +1,9 @@
+2015-06-02  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.5.
+	* debian.pocket: Fix: Proper handling of compound component
+	                 names.
+
 2015-05-25  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.4.
