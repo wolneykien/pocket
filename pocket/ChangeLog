@@ -1,3 +1,8 @@
+2015-06-08  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.6.
+	* debian.pocket: Fix: run `rsync` with -I (ignore timestamps).
+
 2015-06-02  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.5.

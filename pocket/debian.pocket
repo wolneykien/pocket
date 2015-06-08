@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.5
+POCKET_VERSION = 0.2.6
 
 
 # Customization section
@@ -602,7 +602,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 ## "`.git* .svn*`".
 sync-in: $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
-	rsync -a --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(abspath $(FROM))/ $(BUILDROOT)$(INDIR)/SOURCE
+	rsync -aI --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(abspath $(FROM))/ $(BUILDROOT)$(INDIR)/SOURCE
 	case "$(COMPOSE)" in \
 	    0|no|NO|false|FALSE) \
 	        ;; \
@@ -611,7 +611,7 @@ sync-in: $(BUILDROOT)/.buildenv
 	        find  -mindepth 1 -maxdepth 1 -type l | \
 	        while read f; do \
 	            rm "$(abspath $(BUILDROOT))$(INDIR)/SOURCE/$${f#./}"; \
-	            rsync -a --inplace \
+	            rsync -aI --inplace \
 	                "$$(readlink "$$f")/" \
 	                "$(abspath $(BUILDROOT))$(INDIR)/SOURCE/$${f#./}/"; \
 	        done; \
@@ -624,7 +624,7 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo 'DELETE=' >>$(BUILDROOT)/.host/entry
 	@echo '[ -n "$$OVER" ] || DELETE=--delete' >>$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'rsync -a --inplace $$DELETE $(INDIR)/SOURCE ./' >>$(BUILDROOT)/.host/entry
+	@echo 'rsync -aI --inplace $$DELETE $(INDIR)/SOURCE ./' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -z "$$OVER" ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    cd SOURCE' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry

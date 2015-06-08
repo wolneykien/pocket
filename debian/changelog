@@ -1,3 +1,10 @@
+pocket (0.2.6-1) experimental; urgency=low
+
+  * Version 0.2.6.
+  * Debian: Fix: run `rsync` with -I (ignore timestamps).
+
+ -- Paul Wolneykien <manowar@altlinux.org>  Tue, 08 Jun 2015 12:54:00 +0300
+
 pocket (0.2.5-1) experimental; urgency=low
 
   * Version 0.2.5.
