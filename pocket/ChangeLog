@@ -1,3 +1,11 @@
+2015-07-17  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.7.
+	* debian.pocket: Fix/improvement: Handle `:native` in build dependencies.
+	* debian.pocket: Unconditionally flood the repository with noarch (all arch)
+	  packages.
+	* debian.pocket: Fix the `clean-repo` action: don't require bootstrap.
+
 2015-06-08  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.6.
