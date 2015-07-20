@@ -2,8 +2,7 @@ pocket (0.2.7-1) experimental; urgency=low
 
   * Version 0.2.7.
   * Debian: Fix/improvement: Handle `:native` in build dependencies.
-  * Debian: Unconditionally flood the repository with noarch (all arch)
-	packages.
+  * Debian: Unconditionally flood the repository with noarch (all arch) packages.
   * Debian: Fix the `clean-repo` action: don't require bootstrap.
 
  -- Paul Wolneykien <manowar@altlinux.org>  Fri, 17 Jul 2015 12:40:00 +0300
