@@ -1,3 +1,8 @@
+2015-07-23  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.8.
+	* debian/pocket: Fixed Build-Depends corruption.
+
 2015-07-17  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.7.

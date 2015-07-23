@@ -1,3 +1,10 @@
+pocket (0.2.8-1) experimental; urgency=low
+
+  * Version 0.2.8.
+  * Fixed Build-Depends corruption.
+
+ -- Paul Wolneykien <manowar@altlinux.org>  Thu, 22 Jul 2015 12:45:00 +0300
+
 pocket (0.2.7-1) experimental; urgency=low
 
   * Version 0.2.7.

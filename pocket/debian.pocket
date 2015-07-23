@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.7
+POCKET_VERSION = 0.2.8
 
 
 # Customization section
@@ -680,9 +680,12 @@ gencontrol:
 ## action for more information.
 install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/.buildenv$(if $(TARGET),.$(TARGET)) gencontrol
 	@echo "$(INFOPFX) Check and install the build requirements..."
-	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
+	@echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry
+	@echo 'ret=0' >>$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry
+	@echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry
 	@echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry
 	@echo 'sed -i -e "/^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }" debian/control' >>$(BUILDROOT)/.host/entry
 	@echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry
@@ -691,17 +694,15 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   echo '  sed -i -e '\''/^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^):]*)\)\?,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^):]*)\)\?$$/ \1:$(TARGET)\2/ }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo '  sed -i -e '\''/^Build-Depends[^:]*:/ { s/:native//g; s/:all//g; }'\'' -e '\''/^#/ d'\'' debian/control' >>$(BUILDROOT)/.host/entry
-	@echo '  ret=0' >>$(BUILDROOT)/.host/entry
 	@echo '  mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
 	@echo '  if [ $$ret -eq 0 ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo '  fi' >>$(BUILDROOT)/.host/entry
 	@echo '  rm -fv *build-deps*.deb' >>$(BUILDROOT)/.host/entry
-	@echo '  exit $$ret' >>$(BUILDROOT)/.host/entry
 	@echo 'else' >>$(BUILDROOT)/.host/entry
 	@echo '  rm -f ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
-	@echo 'mv ../.control.orig debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'exit $$ret' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 	@if [ -e $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb ]; then \
@@ -716,18 +717,21 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
 	   share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	   echo "$(INFOPFX) Check the build requirements again..."; \
-	   echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
+	   echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; \
+	   echo 'ret=0' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry; \
+	   echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry; \
+	   echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry; \
 	   echo 'sed -i -e "/^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }" debian/control' >>$(BUILDROOT)/.host/entry; \
 	   echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry; \
 	   echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry; \
-	   echo '  exit 1' >>$(BUILDROOT)/.host/entry; \
+	   echo '  ret=1' >>$(BUILDROOT)/.host/entry; \
 	   echo 'else' >>$(BUILDROOT)/.host/entry; \
 	   echo '  echo "$(INFOPFX) Build requirements are met. Ready to build"' >>$(BUILDROOT)/.host/entry; \
 	   echo 'fi' >>$(BUILDROOT)/.host/entry; \
-	   echo 'mv ../.control.orig debian/control' >>$(BUILDROOT)/.host/entry; \
+	   echo 'exit $$ret' >>$(BUILDROOT)/.host/entry; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
 	   $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
 	else \
