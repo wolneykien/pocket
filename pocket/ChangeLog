@@ -3,6 +3,8 @@
 	* Version 0.2.9.
 	* debian/pocket: Fix/improvement: allow to specify an `:arch` suffix
 	  when rebuilding a package.
+	* debian/pocket: Fix: Add listed architectures while generating the
+	  sources.list.
 
 2015-07-23  Paul Wolneykien  <manowar@altlinux.org>
 

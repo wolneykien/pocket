@@ -457,6 +457,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	   fi; \
 	   for a in $$(sed -n -e '/^Architectures:/ { s/^[^[:space:]]\+[[:space:]]*//p; q }' $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)/Release); do \
 	       echo "echo \"deb [arch=$$a] file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+               echo "dpkg --add-architecture $$a" >>$(BUILDROOT)/.host/entry; \
 	   done; \
 	   echo "echo \"deb-src file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	fi
