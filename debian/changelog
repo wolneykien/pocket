@@ -1,4 +1,4 @@
-pocket (0.2.9-1) experimental; urgency=low
+pocket (0.2.9-2) experimental; urgency=low
 
   * Version 0.2.9.
   * Debian: Allow to specify an `:arch` suffix when rebuilding a package.
