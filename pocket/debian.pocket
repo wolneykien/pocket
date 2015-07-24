@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.8
+POCKET_VERSION = 0.2.9
 
 
 # Customization section
@@ -836,7 +836,7 @@ getsource: $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated
 	@echo 'rm -fv *.deb *.dsc *.changes *.tar.*' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
 	@echo 'apt-get -y --allow-unauthenticated source $(PKG)' >>$(BUILDROOT)/.host/entry
-	@echo "find -maxdepth 1 -type d -name '$(PKG)-*' -exec mv -vf '{}' $(SOURCEDIR) \\;" >>$(BUILDROOT)/.host/entry
+	@echo "find -maxdepth 1 -type d -name '$(firstword $(subst :, ,$(PKG)))-*' -exec mv -vf '{}' $(SOURCEDIR) \\;" >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
 

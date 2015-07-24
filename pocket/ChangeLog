@@ -1,3 +1,9 @@
+2015-07-24  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.9.
+	* debian/pocket: Fix/improvement: allow to specify an `:arch` suffix
+	  when rebuilding a package.
+
 2015-07-23  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.8.
