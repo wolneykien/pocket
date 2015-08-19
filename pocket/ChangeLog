@@ -1,3 +1,8 @@
+2015-08-19  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.10.
+	* debian/pocket: New action: `install-check`.
+
 2015-07-24  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.9.

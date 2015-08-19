@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.9
+POCKET_VERSION = 0.2.10
 
 
 # Customization section
@@ -1001,10 +1001,35 @@ build: buildpkg repo
 ## architecture-specific* packages are rebuilt.
 rebuild: rebuildpkg repo
 
+
+##
+## * `install-check`    Performs the fresh test installation of the
+## package given via the `PKG=<package>` parameter. The package
+## is installed in the clean bootstrapped chroot.
+install-check:
+	$(if $(filter install-check,$(MAKECMDGOALS)),$(if $(PKG),,$(error Specify the package to install using 'PKG=')))
+	@echo "$(INFOPFX) Installing package $(PKG) into $(abspath $(INSTALLROOT))"
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
+		BUILDROOT=$(INSTALLROOT) \
+		clean
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) \
+		BUILDROOT=$(INSTALLROOT) \
+		update
+	@echo '#!/bin/sh -e$(SHOPTS)' >$(INSTALLROOT)/.host/entry
+	@if [ -n "$$http_proxy" ]; then \
+	   echo "export http_proxy='$$http_proxy'" >>$(INSTALLROOT)/.host/entry; \
+	   echo "export no_proxy='$$no_proxy'" >>$(INSTALLROOT)/.host/entry; \
+	 fi
+	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(PKG)' >>$(INSTALLROOT)/.host/entry
+	@chmod 0755 $(INSTALLROOT)/.host/entry
+	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
+
+
 ##
 ## * `install-repo`    Performs the test installation of the
 ## current `repo` contents. Use `install-shell` after the
-## successfull install to get inside.
+## successfull install to get inside.  The packages are
+## installed in the clean bootstrapped chroot.
 install-repo: $(INSTALLROOT)/.installrepodone
 
 ##
@@ -1036,10 +1061,10 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	 fi
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
-	-share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
-$(INSTALLROOT)/.testenv: $(INSTALLROOT)/.installrepodone
+$(INSTALLROOT)/.testenv:
 	@echo "$(INFOPFX) Installing additional packages: $(strip $(TESTPKGLIST))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(INSTALLROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \

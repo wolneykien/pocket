@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-POCKET_VERSION="0.2.9"
+POCKET_VERSION="0.2.10"
 PROG_VERSION="$POCKET_VERSION"
 
 CONFDIR="/etc/pocket"

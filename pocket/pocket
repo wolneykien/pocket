@@ -18,7 +18,7 @@
 #
 
 PROG="${PROG:-${0##*/}}"
-PROG_VERSION="0.2.0"
+PROG_VERSION="0.2.10"
 PROG_PATH="${0%/*}"
 
 . "$PROG_PATH/pocket-functions.sh"
