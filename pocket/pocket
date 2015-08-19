@@ -88,6 +88,10 @@ Action wrappers:
                            with the specified list of packages
                            as PKGS=<packages...>;
 
+  install-check <package>  invokes the Pocketfile \`install-check\`
+                           action with the specified package
+                           as PKG=<package>;
+
   rebuild <package>        invokes the Pocketfile \`rebuild\` action
                            with the specified package name
                            as PKG=<package>;
@@ -252,7 +256,7 @@ if [ -z "$action" ]; then
     fi
 else
     case "$action" in
-        install)
+        install|install-check)
             params=; pkgs=
             for a in "$@"; do
                 case "$a" in
@@ -271,7 +275,14 @@ else
 
             [ -n "$pkgs" ] || fatal 'No packages specified\n'
 
-            eval "invoke 'install' PKGS=\"$(quote "$pkgs")\" $params"
+            case "$action" in
+                install)
+                    eval "invoke 'install' PKGS=\"$(quote "$pkgs")\" $params"
+                    ;;
+                install-check)
+                    eval "invoke 'install-check' PKG=\"$(quote "$pkgs")\" $params"
+                    ;;
+            esac
             ;;
         rebuild)
             if [ $# -gt 0 ]; then
