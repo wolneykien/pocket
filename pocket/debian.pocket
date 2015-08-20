@@ -341,23 +341,29 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 ##
 ## * `clean`    Clean the buildroot making it necessary to
 ## `bootstrap` again.
-clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
-	@echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"
-	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
-	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
-	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
-	@echo 'echo "Removed \"$(OUTREPODIR)\"" >&2' >>$(BUILDROOT)/.host/entry
-	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
-	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
-	@echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry
-	@echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry
-	@echo '  [ -O "$$f" ] || continue' >>$(BUILDROOT)/.host/entry
-	@echo '  rm -rf "$$f"' >>$(BUILDROOT)/.host/entry
-	@echo '  echo "Removed \"$$f\"" >&2' >>$(BUILDROOT)/.host/entry
-	@echo 'done' >>$(BUILDROOT)/.host/entry
-	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+clean: clean-builder
+	@if [ -d $(BUILDROOT)$(OUTREPODIR) ]; then \
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) bootstrap; \
+	  echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"; \
+	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
+	  echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry; \
+	  echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry; \
+	  echo 'echo "Removed \"$(OUTREPODIR)\"" >&2' >>$(BUILDROOT)/.host/entry; \
+	  chmod 0755 $(BUILDROOT)/.host/entry; \
+	  $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	fi
+	@if [ -n '$(wildcard $(BUILDROOT)/*)'  ]; then \
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) bootstrap; \
+	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
+	  echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry; \
+	  echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry; \
+	  echo '  [ -O "$$f" ] || continue' >>$(BUILDROOT)/.host/entry; \
+	  echo '  rm -rf "$$f"' >>$(BUILDROOT)/.host/entry; \
+	  echo '  echo "Removed \"$$f\"" >&2' >>$(BUILDROOT)/.host/entry; \
+	  echo 'done' >>$(BUILDROOT)/.host/entry; \
+	  chmod 0755 $(BUILDROOT)/.host/entry; \
+	  $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry; \
+	fi
 	rm -fv $(BUILDROOT)/.testenv
 	rm -fv $(BUILDROOT)/.installrepodone
 	rm -fv $(BUILDROOT)/.buildenv
@@ -373,16 +379,19 @@ clean: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX) clean-builder
 ##
 ## * `clean-builder`    Clean the home directory of the user
 ## 'builder' (/usr/src).
-clean-builder: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
-	@echo "$(INFOPFX) Cleanup the builder home dir..."
-	@if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
-	   echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
-	   echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry; \
-	   echo 'find "$(BUILDER_HOME)" -mindepth 1 -prune -exec rm -rf {} \;' >>$(BUILDROOT)/.host/entry; \
-	   echo 'echo "Cleaned \"$(BUILDER_HOME)\"" >&2' >>$(BUILDROOT)/.host/entry; \
-	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
-	 fi
+clean-builder:
+	@if [ -n '$(wildcard $(BUILDROOT)$(BUILDER_HOME)/*)' ]; then \
+	    $(MAKE) -f $(firstword $(MAKEFILE_LIST)) bootstrap; \
+	    echo "$(INFOPFX) Cleanup the builder home dir..."; \
+	    if [ -d $(BUILDROOT)$(BUILDER_HOME) ]; then \
+	       echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
+	       echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry; \
+	       echo 'find "$(BUILDER_HOME)" -mindepth 1 -prune -exec rm -rf {} \;' >>$(BUILDROOT)/.host/entry; \
+	       echo 'echo "Cleaned \"$(BUILDER_HOME)\"" >&2' >>$(BUILDROOT)/.host/entry; \
+	       chmod 0755 $(BUILDROOT)/.host/entry; \
+	       $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	     fi; \
+	fi
 
 $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	$(if $(RESOLVCONF),,$(error resolv.conf is not configured))
@@ -744,7 +753,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 ## * `cleanpkg`    Clean (delete) the files produced by the last
 ## package building procedure. The wildcard includes: `*.deb`,
 ## `*.dsc`, `*.changes` and `*.tar.*`.
-cleanpkg:
+cleanpkg: $(BUILDROOT)/.configured
 	@echo "$(INFOPFX) Deleting all built packages..."
 	@rm -fv $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
