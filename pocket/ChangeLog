@@ -1,8 +1,10 @@
 2015-08-20  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.10.
-	* debian/pocket 0.2.10.1: Fix: Make the actions `clean`, `clean-repo`, etc
-	  not require bootstrap.
+	* debian/pocket 0.2.10.1: Fix: Make the actions `clean`,
+	  `clean-repo`, etc not require bootstrap.
+	* debian/pocket (0.2.10.2): Fix/workaround: Use $(abspath)
+	  instead of $(realpath).
 
 2015-08-19  Paul Wolneykien  <manowar@altlinux.org>
 

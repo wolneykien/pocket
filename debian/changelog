@@ -1,9 +1,10 @@
-pocket (0.2.10-3) experimental; urgency=low
+pocket (0.2.10-4) experimental; urgency=low
 
   * Debian (0.2.10.1): Fix: Make the actions `clean`, `clean-repo`, etc not
     require bootstrap.
+  * Debian (0.2.10.2): Fix/workaround: Use $(abspath) instead of $(realpath).
 
- -- Paul Wolneykien <manowar@altlinux.org>  Thu, 20 Aug 2015 12:58:00 +0300
+ -- Paul Wolneykien <manowar@altlinux.org>  Thu, 20 Aug 2015 16:21:00 +0300
 
 pocket (0.2.10-2) experimental; urgency=low
 

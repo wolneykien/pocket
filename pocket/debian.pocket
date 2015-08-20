@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.10.1
+POCKET_VERSION = 0.2.10.2
 
 
 # Customization section
@@ -189,7 +189,7 @@ $(BUILDROOT)/.preconfigured: $(BUILDROOT)/.preinstalled
 	@echo 'update-passwd' >>$(BUILDROOT)/.host/entry
 	@echo 'touch /etc/shells' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
@@ -213,7 +213,7 @@ $(BUILDROOT)/.configured: $(BUILDROOT)/.installed
 	   exit 1; \
 	 fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
@@ -225,7 +225,7 @@ $(BUILDROOT)/.extracted: $(DEBPATHS) $(BUILDROOT)/dev/.stamp \
 	     -e 's,^.*$$,$(BUSYBOX) dpkg-deb -x /.host& /,' \
 	  $(DEBPATHS) >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_A) $(abspath $(BUILDROOT)) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
@@ -247,7 +247,7 @@ $(BUILDROOT)/.preinstalled: $(BUILDROOT)/.extracted
 	@echo '}' >>$(BUILDROOT)/.host/entry
 	@sed -e 's,^\([^[:space:]]\+\)[[:space:]]\+\(.*\)$$,install "\1" "/.host\2" >>/var/lib/dpkg/status,' $(DEBPATHS) >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
@@ -259,7 +259,7 @@ $(BUILDROOT)/.installed: $(BUILDROOT)/.preconfigured
 	   echo 'cd /.host/var/cache/apt/archives' >>$(BUILDROOT)/.host/entry; \
 	   echo "dpkg -i $$pkgs" >>$(BUILDROOT)/.host/entry; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	   $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	 fi
 	touch $@
 
@@ -334,7 +334,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	chgrp $(USER_A) $(BUILDROOT)/dev
 	mkdir $(BUILDROOT)/dev/pts
 	chgrp $(USER_A) $(BUILDROOT)/dev/pts
-	$(MAKEDEV) $(realpath $(BUILDROOT))
+	$(MAKEDEV) $(abspath $(BUILDROOT))
 	mkdir -m1777 $(BUILDROOT)/dev/shm
 	touch $@
 
@@ -350,7 +350,7 @@ clean: clean-builder
 	  echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry; \
 	  echo 'echo "Removed \"$(OUTREPODIR)\"" >&2' >>$(BUILDROOT)/.host/entry; \
 	  chmod 0755 $(BUILDROOT)/.host/entry; \
-	  $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	  $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
 	fi
 	@if [ -n '$(wildcard $(BUILDROOT)/*)'  ]; then \
 	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) bootstrap; \
@@ -362,7 +362,7 @@ clean: clean-builder
 	  echo '  echo "Removed \"$$f\"" >&2' >>$(BUILDROOT)/.host/entry; \
 	  echo 'done' >>$(BUILDROOT)/.host/entry; \
 	  chmod 0755 $(BUILDROOT)/.host/entry; \
-	  $(RUN_A) $(realpath $(BUILDROOT)) /.host/entry; \
+	  $(RUN_A) $(abspath $(BUILDROOT)) /.host/entry; \
 	fi
 	rm -fv $(BUILDROOT)/.testenv
 	rm -fv $(BUILDROOT)/.installrepodone
@@ -389,7 +389,7 @@ clean-builder:
 	       echo 'find "$(BUILDER_HOME)" -mindepth 1 -prune -exec rm -rf {} \;' >>$(BUILDROOT)/.host/entry; \
 	       echo 'echo "Cleaned \"$(BUILDER_HOME)\"" >&2' >>$(BUILDROOT)/.host/entry; \
 	       chmod 0755 $(BUILDROOT)/.host/entry; \
-	       $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	       $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
 	     fi; \
 	fi
 
@@ -401,7 +401,7 @@ $(BUILDROOT)/etc/resolv.conf: $(BUILDROOT)/.configured
 	@echo 'EOF' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	@echo "$(INFOPFX) Setting up $(BUILDROOT)/etc/resolv.conf"
-	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 ##
 ## * `update`    Call `apt-get update` to refresh the set of known
@@ -424,7 +424,7 @@ rm-updated:
 	  rm -fv $(BUILDROOT)/.updated;\
 	  echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
 	  echo 'rm -fv /etc/resolv.conf' >>$(BUILDROOT)/.host/entry; \
-	  $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	  $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	fi
 
 ##
@@ -437,7 +437,7 @@ clean-cache: rm-updated
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)/dists/$(OUTNAME)/Release),$(BUILDREPO)/dists/$(OUTNAME)/Release)
 	$(if $(DISTRO),,$(error Distribution name is not specified))
@@ -476,7 +476,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	 fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	@[ -z "$(CROSS)" ] || touch $(BUILDROOT)/.cross
 	touch $@
 
@@ -497,7 +497,7 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	 fi
 	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	[ ! -e $(BUILDROOT)/etc/apt/sources.list.d/.cross ] || touch $(BUILDROOT)/.cross
 	touch $@
 
@@ -518,7 +518,7 @@ install: $(BUILDROOT)/.updated
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(PKGS)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 ##
 ## * `shell`    Invoke the command shell inside the build chroot.
@@ -529,19 +529,19 @@ install: $(BUILDROOT)/.updated
 ## parameter is passed via `-c` option to the shell providing
 ## a way to execute arbitrary command inside the chroot and exit.
 shell: $(BUILDROOT)/.configured
-	@echo "$(INFOPFX) Entering $(realpath $(BUILDROOT)/$(BUILDER_HOME))"
+	@echo "$(INFOPFX) Entering $(abspath $(BUILDROOT)/$(BUILDER_HOME))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ "$(ROLE)" = '$(ROOTER)' ]; then \
 	   echo "export TMPDIR='/tmp'" >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd "/root"' >>$(BUILDROOT)/.host/entry; \
 	   echo "$(USERSHELL) $(if $(CMD),-c '$(CMD)')" >>$(BUILDROOT)/.host/entry; \
-	   $(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) use_pty=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	   $(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) use_pty=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	else \
 	   echo "export TMPDIR='$(BUILDER_HOME)/tmp'" >>$(BUILDROOT)/.host/entry; \
 	   echo 'mkdir -p "$$TMPDIR"' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cd "$(BUILDER_HOME)"' >>$(BUILDROOT)/.host/entry; \
 	   echo "$(USERSHELL) $(if $(CMD),-c '$(CMD)')" >>$(BUILDROOT)/.host/entry; \
-	   $(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) use_pty=yes $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	   $(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) use_pty=yes $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
 	fi; \
 	exit 0
 
@@ -571,7 +571,7 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$(TARGET)
@@ -587,7 +587,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 	    echo 'fi' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 ##
@@ -645,7 +645,7 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `sync-out`    Update the package source in the given directory from
@@ -678,7 +678,7 @@ gencontrol:
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `install-builddeps`    Install the packages that are required
@@ -714,7 +714,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'exit $$ret' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	@if [ -e $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb ]; then \
 	   echo '$(INFOPFX) The deps meta-package was built. Installing it to satisfy the dependencies...'; \
 	   echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
@@ -725,7 +725,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry; \
 	   echo 'apt-get install -f -y --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   share_network=yes $(RUN_A) $(realpath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	   echo "$(INFOPFX) Check the build requirements again..."; \
 	   echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; \
 	   echo 'ret=0' >>$(BUILDROOT)/.host/entry; \
@@ -743,7 +743,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   echo 'fi' >>$(BUILDROOT)/.host/entry; \
 	   echo 'exit $$ret' >>$(BUILDROOT)/.host/entry; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	   $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
 	else \
 	   echo '$(INFOPFX) Build requirements are met. Ready to build'; \
 	fi
@@ -764,7 +764,7 @@ cleanpkg: $(BUILDROOT)/.configured
 	@echo 'rm -fv *.deb *.dsc *.changes *.tar.*' >>$(BUILDROOT)/.host/entry
 	@echo '[ $$(find .keep/ -maxdepth 1 -name "*.orig.tar.*" | wc -l) -eq 0 ] || mv .keep/*.orig.tar.* ./' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `buildpkg`    Start or continue building the Debian package from
@@ -796,7 +796,7 @@ buildpkg: install-builddeps cleanpkg
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) -F -nc -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	@touch $(BUILDROOT)/.buildok
 	@$(MAKE) -si -f $(firstword $(MAKEFILE_LIST)) filecheck ARCH=$(ARCH) BUILDROOT=$(BUILDROOT)
 
@@ -829,7 +829,7 @@ rebuildpkg: getsource install-builddeps
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) -us -uc' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	@touch $(BUILDROOT)/.buildok
 	@$(MAKE) -si -f $(firstword $(MAKEFILE_LIST)) filecheck ARCH=$(ARCH) BUILDROOT=$(BUILDROOT)
 
@@ -848,7 +848,7 @@ getsource: $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated
 	@echo 'apt-get -y --allow-unauthenticated source $(PKG)' >>$(BUILDROOT)/.host/entry
 	@echo "find -maxdepth 1 -type d -name '$(firstword $(subst :, ,$(PKG)))-*' -exec mv -vf '{}' $(SOURCEDIR) \\;" >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `filecheck`    Check if all of the installed files are packaged.
@@ -875,7 +875,7 @@ filecheck: $(BUILDROOT)/.buildok
 	@echo '  exit 1' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 
 
 ##
@@ -968,7 +968,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo 'reprepro -b $(OUTREPODIR) flood $(OUTNAME)' >>$(BUILDROOT)/.host/entry
 	@echo 'chmod -R a+rX $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	rm -rf $(BUILDREPO)
 	mkdir $(BUILDREPO)
 	cp -a $(BUILDROOT)$(OUTREPODIR)/* \
@@ -988,7 +988,7 @@ clean-repo:
 	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
 	  echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry; \
 	  chmod 0755 $(BUILDROOT)/.host/entry; \
-	  $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	  $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
 	fi
 	rm -rfv $(BUILDREPO)
 	rm -fv $(BUILDROOT)/.updated
@@ -1036,7 +1036,7 @@ install-check:
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(PKG)' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(abspath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
 
 
 ##
@@ -1075,7 +1075,7 @@ $(BUILDREPO)/dists/$(OUTNAME)/Release
 	 fi
 	@echo 'apt-get install -y -f --no-install-recommends --allow-unauthenticated' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(abspath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 $(INSTALLROOT)/.testenv:
@@ -1087,7 +1087,7 @@ $(INSTALLROOT)/.testenv:
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(TESTPKGLIST))' >>$(INSTALLROOT)/.host/entry
 	@chmod 0755 $(INSTALLROOT)/.host/entry
-	share_network=yes $(RUN_A) $(realpath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUN_A) $(abspath $(INSTALLROOT)) $(FAKEROOT) /.host/entry
 	touch $@
 
 ##
@@ -1105,7 +1105,7 @@ show-targets: $(BUILDROOT)/.cross
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'apt-cache search "^crossbuild-essential-" | sed -e "s/^crossbuild-essential-\([^[:space:]]\+\)[[:space:]].*$$/\1/"' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 
 ##
 ## * `show-config`    Show the current Pocketfile configuration.
@@ -1120,7 +1120,7 @@ show-config:
 	@echo 'System variant: $(VARIANT)'
 	@echo 'System package list: $(SYSPKGLIST)'
 	@echo 'Exclude package list: $(NOSYSPKGLIST)'
-	@echo 'Downloaded system tarball: $(realpath $(BUILDROOTTAR))'
+	@echo 'Downloaded system tarball: $(abspath $(BUILDROOTTAR))'
 	@echo 'Build package list: $(BUILDPKGLIST)'
 	@echo 'Test package list: $(TESTPKGLIST)'
 	@echo 'Build root: $(abspath $(BUILDROOT))'
