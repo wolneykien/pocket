@@ -1,3 +1,9 @@
+2015-08-20  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.10.
+	* debian/pocket 0.2.10.1: Fix: Make the action `clean-repo`
+	  not require bootstrap.
+
 2015-08-19  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.10.

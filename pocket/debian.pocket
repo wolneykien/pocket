@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.10
+POCKET_VERSION = 0.2.10.1
 
 
 # Customization section
@@ -969,13 +969,18 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 
 ##
 ## * `clean-repo`    Completely remove the `repo` directory.
-clean-repo: $(BUILDROOT)/dev/.stamp $(BUILDROOT)$(BUSYBOX)
+clean-repo:
 	@echo "$(INFOPFX) Deleting the repository accumulator..."
 	rm -f $(BUILDROOT)/.repodone
-	@echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry
-	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
-	@chmod 0755 $(BUILDROOT)/.host/entry
-	$(RUN_B) $(realpath $(BUILDROOT)) /.host/entry
+	@if [ -d $(BUILDROOT)$(OUTREPODIR) -a \
+              -e $(BUILDROOT)/dev/.stamp -a \
+              -e $(BUILDROOT)$(BUSYBOX) ]; \
+        then \
+	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
+	  echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry; \
+	  chmod 0755 $(BUILDROOT)/.host/entry; \
+	  $(RUN_B) $(realpath $(BUILDROOT)) /.host/entry; \
+	fi
 	rm -rfv $(BUILDREPO)
 	rm -fv $(BUILDROOT)/.updated
 
