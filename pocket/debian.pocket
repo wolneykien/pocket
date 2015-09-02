@@ -724,8 +724,10 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   fi; \
 	   echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry; \
 	   echo 'apt-get install -f -y --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry; \
+	   ret=0; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$?; \
+	   [ $$ret -eq 0 ] || exit $$ret; \
 	   echo "$(INFOPFX) Check the build requirements again..."; \
 	   echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; \
 	   echo 'ret=0' >>$(BUILDROOT)/.host/entry; \
