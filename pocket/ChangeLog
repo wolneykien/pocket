@@ -1,3 +1,8 @@
+2015-09-02  Paul Wolneykien  <manowar@altlinux.org>
+
+	* debian.pocket: `install-builddeps`:
+	    Fix: Report th error when `apt-get install` fails.
+
 2015-08-20  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.10.
