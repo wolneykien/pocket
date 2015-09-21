@@ -18,7 +18,7 @@
 #
 
 PROG="${PROG:-${0##*/}}"
-PROG_VERSION="0.2.10"
+PROG_VERSION="0.2.11"
 PROG_PATH="${0%/*}"
 
 . "$PROG_PATH/pocket-functions.sh"
@@ -287,8 +287,6 @@ else
         rebuild)
             if [ $# -gt 0 ]; then
                 pkg="$1"; shift
-                [ "${pkg%=*}" = "$pkg" ] || \
-                    fatal 'Malformed package name: %s\n' "$pkg"
                 invoke 'rebuild' PKG="$pkg" "$@"
             else
                 fatal 'Source package name is not specified\n'
