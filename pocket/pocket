@@ -18,7 +18,7 @@
 #
 
 PROG="${PROG:-${0##*/}}"
-PROG_VERSION="0.2.11"
+PROG_VERSION="0.2.12"
 PROG_PATH="${0%/*}"
 
 . "$PROG_PATH/pocket-functions.sh"
@@ -263,8 +263,14 @@ else
                     *=*)
                         name="${a%%=*}"
                         val="${a#*=}"
-                        [ -z "$params" ] || params="$params "
-                        params="${params}$name=\"$(quote "$val")\""
+                        
+                        if echo "$name" | grep -q '^[A-Z_0-9]\+$'; then
+                            [ -z "$params" ] || params="$params "
+                            params="${params}$name=\"$(quote "$val")\""
+                        else
+                            [ -z "$pkgs" ] || pkgs="$pkgs "
+                            pkgs="${pkgs}$a"
+                        fi
                         ;;
                     *)
                         [ -z "$pkgs" ] || pkgs="$pkgs "

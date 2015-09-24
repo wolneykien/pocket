@@ -1,6 +1,12 @@
+pocket (0.2.12-1) experimental; urgency=low
+
+  * Fix/impr.: Allow to check a particular package version (via name=ver syntax).
+
+ -- Paul Wolneykien <manowar@altlinux.org>  Mon, 24 Sep 2015 13:05:00 +0300
+
 pocket (0.2.11-1) experimental; urgency=low
 
-  * Fix: allow to rebuild a particular package version (via name=ver syntax).
+  * Fix: Allow to rebuild a particular package version (via name=ver syntax).
 
  -- Paul Wolneykien <manowar@altlinux.org>  Mon, 21 Sep 2015 19:48:00 +0300
 
