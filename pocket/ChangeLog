@@ -1,3 +1,8 @@
+2015-10-12  Paul Wolneykien  <manowar@altlinux.org>
+
+	* Version 0.2.13.
+	* pocket: Suppress Entering/Leaving directory messages.
+
 2015-09-24  Paul Wolneykien  <manowar@altlinux.org>
 
 	* Version 0.2.12.

@@ -18,7 +18,7 @@
 #
 
 PROG="${PROG:-${0##*/}}"
-PROG_VERSION="0.2.12"
+PROG_VERSION="0.2.13"
 PROG_PATH="${0%/*}"
 
 . "$PROG_PATH/pocket-functions.sh"
@@ -62,6 +62,8 @@ Options:
   -r NAME, --repo=NAME        override the repository name;
 
   -q, --quiet    suppress output;
+
+  -w, --print-dirs  print directory walk as in normal \`make\`;
 
   -d, --debug    turn on the debugging output;
 
@@ -156,9 +158,9 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,r:,N,q,d,n,h,V -l dir:,arch:,target:,repo:,network,quiet,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
+OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,r:,N,q,w,d,n,h,V -l dir:,arch:,target:,repo:,network,quiet,print-dirs,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
 
-dir=; quiet=; debug=; dry=; arch=; target=; network=; reponame=
+dir=; quiet=; printdirs=; debug=; dry=; arch=; target=; network=; reponame=
 
 argparse() {
     while :; do
@@ -172,6 +174,7 @@ argparse() {
             -r|--repo) shift; reponame="$1";;
             -N|--network) network=-n;;
             -q|--quiet) quiet=-q;;
+            -w|--print-dirs) printdirs=-w;;
             -d|--debug)
                 [ -n "$debug" ] || debug=0
             debug=$((debug + 1))
@@ -205,7 +208,7 @@ do_invoke()
     local deep=
     [ ${debug:-0} -le 1 ] || deep=1
 
-    "$MAKE" -w -r ${normal:+-s} ${quiet:+--no-print-directory} \
+    "$MAKE" ${printdirs:---no-print-directory} -r ${normal:+-s} \
             ${deep:+-d} ${dry:+-n} \
             -C "${POCKETDIR%/}" -f "$POCKETFILE" \
         "$@" ${debug:+DEBUG=yes} \
@@ -303,11 +306,9 @@ else
             [ ${debug:-0} -gt 0 ] || normal=1
             if [ $# -gt 0 ]; then
                 subj="$1"; shift
-                invoke ${normal:+--no-print-directory} \
-                       "$action" SUBJ="$subj" "$@"
+                invoke "$action" SUBJ="$subj" "$@"
             else
-                invoke ${normal:+--no-print-directory} \
-                       "$action" "$@"
+                invoke "$action" "$@"
             fi
             ;;
         sync-in)
