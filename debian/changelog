@@ -1,8 +1,9 @@
-pocket (0.2.13-1) experimental; urgency=low
+pocket (0.2.13-2) experimental; urgency=low
 
   * pocket: Suppress Entering/Leaving directory messages.
+  * debian.pocket (0.2.11.1): Fix @echo in overlay repo list.
 
- -- Paul Wolneykien <manowar@altlinux.org>  Mon, 12 Oct 2015 14:35:00 +0300
+ -- Paul Wolneykien <manowar@altlinux.org>  Mon, 12 Oct 2015 16:03:00 +0300
 
 pocket (0.2.12-1) experimental; urgency=low
 

@@ -2,6 +2,7 @@
 
 	* Version 0.2.13.
 	* pocket: Suppress Entering/Leaving directory messages.
+	* debian.pocket: Fix: @echo in overlay repo list.
 
 2015-09-24  Paul Wolneykien  <manowar@altlinux.org>
 
