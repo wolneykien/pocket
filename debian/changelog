@@ -1,3 +1,9 @@
+pocket (0.2.13-3) experimental; urgency=low
+
+  * Fix: require `debootstrap` and `dpkg`.
+
+ -- Paul Wolneykien <manowar@altlinux.org>  Tue, 20 Oct 2015 16:38:00 +0300
+
 pocket (0.2.13-2) experimental; urgency=low
 
   * pocket: Suppress Entering/Leaving directory messages.

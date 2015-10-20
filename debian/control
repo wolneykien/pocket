@@ -9,5 +9,5 @@ Homepage: http://metrotek.spb.ru/
 Package: pocket
 Section: main/devel
 Architecture: all
-Depends: make, coreutils, hasher-priv, ${misc:Depends}
+Depends: make, coreutils, hasher-priv, debootstrap, dpkg, ${misc:Depends}
 Description: A compact package build system with unprivileged access
