@@ -14,6 +14,10 @@ pocket_init_DESC = pocket chroot initialization and configuration util
 
 html_DATA = debian.html
 
+if ENABLE_BASH_COMPLETION
+  bashcompletion_DATA = completion/pocket completion/pocket-init
+endif
+
 %.inc: %.md
 	ronn --roff $< --pipe >$@
 	sed -i -e '/^\.TH/ d' \

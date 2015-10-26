@@ -1,3 +1,9 @@
+pocket (0.2.13-6) experimental; urgency=low
+
+  * Bash completion added for pocket and pocket-init.
+
+ -- Vladimir Isaev <v.isaev@metrotek.spb.ru>  Sun, 17 Jan 2016 16:00:09 +0300
+
 pocket (0.2.13-5) experimental; urgency=low
 
   * debian.pocket (0.2.11.2): Fix: `repo`: component name extraction fixed.

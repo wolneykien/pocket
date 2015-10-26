@@ -18,6 +18,20 @@ test -n "$ronn" || AC_MSG_ERROR([ronn program not found])
 AC_CHECK_PROG(help2man,help2man,help2man)
 test -n "$help2man" || AC_MSG_ERROR([help2man program not found])
 
+# Thanks systemd!
+AC_ARG_WITH([bashcompletiondir],
+        AS_HELP_STRING([--with-bashcompletiondir=DIR], [Bash completions directory]),
+        [],
+        [AS_IF([$(pkg-config --exists bash-completion)], [
+                with_bashcompletiondir=$(pkg-config --variable=completionsdir bash-completion)
+        ] , [
+                with_bashcompletiondir=${datadir}/bash-completion/completions
+        ])])
+AM_CONDITIONAL(ENABLE_BASH_COMPLETION, [test "$with_bashcompletiondir" != "no"])
+#AX_NORMALIZE_PATH([with_bashcompletiondir])
+
+AC_SUBST([bashcompletiondir], [$with_bashcompletiondir])
+
 # Output
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
