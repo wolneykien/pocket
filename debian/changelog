@@ -1,3 +1,9 @@
+pocket (0.2.13-4) experimental; urgency=low
+
+  * Fix: require `rsync` and `less` packages.
+
+ -- Paul Wolneykien <manowar@altlinux.org>  Mon, 11 Jan 2016 17:27:00 +0300
+
 pocket (0.2.13-3) experimental; urgency=low
 
   * Fix: require `debootstrap` and `dpkg`.
