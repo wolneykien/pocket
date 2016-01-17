@@ -66,7 +66,7 @@ while :; do
     -h|--help) show_help;;
     -c|--config) shift; config="$1";;
     -f|--flavour) shift; flavour="$1";;
-    -F|avail-flavours) do_print_flavours;;
+    -F|--avail-flavours) do_print_flavours;;
     -a|--arch) shift; arch="$1";;
     -n|--num) shift; num="$1";;
     -r|--repo) shift; reponame="$1";;
