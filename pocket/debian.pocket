@@ -723,7 +723,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	     echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   fi; \
 	   echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry; \
-	   echo 'apt-get install -f -y --no-install-recommends --allow-unauthenticated' >>$(BUILDROOT)/.host/entry; \
+	   echo 'apt-get install -f -y --no-remove --no-install-recommends --allow-unauthenticated -o Debug::pkgProblemResolver=yes' >>$(BUILDROOT)/.host/entry; \
 	   ret=0; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
 	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$?; \
