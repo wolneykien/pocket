@@ -1,3 +1,9 @@
+pocket (0.2.13-7) experimental; urgency=low
+
+  * Enable APT problem resolver debug output for the `install-builddeps` target.
+
+ -- Paul Wolneykien <manowar@altlinux.org>  Mon, 25 Apr 2016 17:08:00 +0300
+
 pocket (0.2.13-6) experimental; urgency=low
 
   * Bash completion added for pocket and pocket-init.
