@@ -1,3 +1,9 @@
+2016-04-25  Paul Wolneykien  <manowar@altlinux.org>
+
+	* debian.pocket (0.2.11.3):
+	    Enable APT problem resolver debug output for the
+	    `install-builddeps` target.
+
 2016-01-15  Paul Wolneykien  <manowar@altlinux.org>
 
 	* debian.pocket (0.2.11.2):
