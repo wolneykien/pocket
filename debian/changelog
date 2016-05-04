@@ -1,8 +1,8 @@
-pocket (0.2.13-7) experimental; urgency=low
+pocket (0.2.13-8) experimental; urgency=low
 
   * Enable APT problem resolver debug output for the `install-builddeps` target.
 
- -- Paul Wolneykien <manowar@altlinux.org>  Mon, 25 Apr 2016 17:08:00 +0300
+ -- Paul Wolneykien <manowar@altlinux.org>  Wed, 04 May 2016 13:05:00 +0300
 
 pocket (0.2.13-6) experimental; urgency=low
 
