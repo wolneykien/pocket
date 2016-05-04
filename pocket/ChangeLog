@@ -1,3 +1,8 @@
+2016-05-04  Paul Wolneykien  <manowar@altlinux.org>
+
+	* debian.pocket (0.2.11.4):
+	    Enable removes during build dependency installation.
+
 2016-04-25  Paul Wolneykien  <manowar@altlinux.org>
 
 	* debian.pocket (0.2.11.3):
