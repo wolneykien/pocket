@@ -1,3 +1,10 @@
+2016-09-29  Paul Wolneykien  <manowar@altlinux.org>
+
+	* debian.pocket (0.2.11.5):
+	    Fix/improve the Build-Depends parser. Add support
+	    for multiline (folded) values. Properly parse the
+	    version restrictions with the epoch (':') symbol.
+
 2016-05-04  Paul Wolneykien  <manowar@altlinux.org>
 
 	* debian.pocket (0.2.11.4):

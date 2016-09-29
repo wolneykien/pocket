@@ -1,3 +1,10 @@
+pocket (0.2.13-9) experimental; urgency=low
+
+  * Fix/improve the Build-Depends parser. Add support for multiline (folded)
+	values. Properly parse the version restrictions with the epoch (':') symbol.
+
+ -- Paul Wolneykien <manowar@altlinux.org>  Thu, 29 Sep 2016 16:00:00 +0300
+
 pocket (0.2.13-8) experimental; urgency=low
 
   * Enable APT problem resolver debug output for the `install-builddeps` target.

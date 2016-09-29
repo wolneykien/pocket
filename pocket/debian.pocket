@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.11.4
+POCKET_VERSION = 0.2.11.5
 
 
 # Customization section
@@ -697,11 +697,11 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry
 	@echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry
 	@echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry
-	@echo 'sed -i -e "/^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }" debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'sed -i -e "/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry
 	@echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "$(INFOPFX) There are unmet dependencies. Preparing deps meta-package..."' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$(TARGET)" ]; then \
-	   echo '  sed -i -e '\''/^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^):]*)\)\?,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^):]*)\)\?$$/ \1:$(TARGET)\2/ }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
+	   echo '  sed -i -e '\''/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^)]*)\)\?,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^)]*)\)\?$$/ \1:$(TARGET)\2/ }; /^[[:space:]]/ { s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^)]*)\)\?,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^)]*)\)\?$$/ \1:$(TARGET)\2/ }; }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo '  sed -i -e '\''/^#/ d'\'' debian/control' >>$(BUILDROOT)/.host/entry
 	@echo '  mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
@@ -736,7 +736,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry; \
 	   echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry; \
-	   echo 'sed -i -e "/^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }" debian/control' >>$(BUILDROOT)/.host/entry; \
+	   echo 'sed -i -e "/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry; \
 	   echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry; \
 	   echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry; \
 	   echo '  ret=1' >>$(BUILDROOT)/.host/entry; \
