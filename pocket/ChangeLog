@@ -5,6 +5,10 @@
 	    for multiline (folded) values. Properly parse the
 	    version restrictions with the epoch (':') symbol.
 
+	* debian.pocket (0.2.11.5):
+	    Add support for `UDebComponents` in the `reprepro`
+	    config to the `repo` target.
+
 2016-05-04  Paul Wolneykien  <manowar@altlinux.org>
 
 	* debian.pocket (0.2.11.4):
