@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.11.5
+POCKET_VERSION = 0.2.11.6
 
 
 # Customization section
@@ -640,7 +640,7 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo '    cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
 	@echo '        rm -fv ../*.orig.tar.gz' >>$(BUILDROOT)/.host/entry
-	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''s/^Version:[[:space:]]\+//p'\'' | sed -e "s/-.*\$$//").orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
+	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''/^Version:/ {s/^Version:[[:space:]]\+//; s/^[0-9]\+://; s/-.*$$//; p}'\'').orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
 	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry

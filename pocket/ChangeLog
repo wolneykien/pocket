@@ -1,3 +1,9 @@
+2016-10-05  Paul Wolneykien  <manowar@altlinux.org>
+
+	* debian.pocket (0.2.11.6):
+	    Fix .orig.tar.gz creation: do not include the
+	    epoch number into the filename.
+
 2016-09-29  Paul Wolneykien  <manowar@altlinux.org>
 
 	* debian.pocket (0.2.11.5):
