@@ -1,3 +1,18 @@
+pocket (0.2.13-12) experimental; urgency=low
+
+ *  Fix: remove all (previously installed) *-builddeps packages 
+         during process of 'cleanpkg' target.	    
+         Sometimes buildprocess stoped because this package
+         stay in unconfigured state (iU)
+ *  Fix: add rebuildpkg target dependency from cleanpkg target
+ *  Fix: allow use of Network during process of 'buildpkg' target	
+         Some packages may require network connection for building.
+ *  Fix: remove '-nc' dpkg-builddep option because of
+         two consecutive build process for different arch
+         failed.
+
+ -- Alexander Buev <a.buev@metrotek.spb.ru>  Wed, 23 Aug 2017 18:10:49 +0400
+
 pocket (0.2.13-11) experimental; urgency=low
 
   * Fix .orig.tar.gz creation: do not include the epoch number into the filename.
