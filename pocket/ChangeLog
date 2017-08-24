@@ -9,9 +9,8 @@
 	    Fix: add rebuildpkg target dependency from cleanpkg target
 	    Fix: allow use of Network during process of 'buildpkg' target	
 		 Some packages may require network connection for building.
-	    Fix: remove '-nc' dpkg-builddep option because of
-		 two consecutive build process for different arch
-		 failed.
+	    Improve: Added new option NOCLEAN for buildpkg target
+		 to instruct dpkg-buildpackage tool do not clean it's build directory
 
 2016-10-05  Paul Wolneykien  <manowar@altlinux.org>
 

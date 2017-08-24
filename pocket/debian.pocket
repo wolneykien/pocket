@@ -793,6 +793,9 @@ cleanpkg: $(BUILDROOT)/.configured
 ## repository name (and therefore, the name of its directory) given
 ## at pocket initialization (use `show-config` without parameters to
 ## get it).
+##
+##     The `NOCLEAN=<anything>` parameter can be used to instruct
+## the `dpkg-buildpackage` tool to skip process of clean it's build directory
 buildpkg: install-builddeps cleanpkg
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@rm -f $(BUILDROOT)/.buildok
@@ -803,7 +806,11 @@ buildpkg: install-builddeps cleanpkg
 	@echo '    export CONFIG_SITE=/etc/dpkg-cross/cross-config.$(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo '    export DEB_BUILD_OPTIONS=nocheck' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
-	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) -F -us -uc' >>$(BUILDROOT)/.host/entry
+	@echo 'BUILDOPTS="-F -us -uc"' >>$(BUILDROOT)/.host/entry
+	@if [ "x$(NOCLEAN)" != "x"  ]; then \
+	  echo 'BUILDOPTS="$${BUILDOPTS} -nc"' >>$(BUILDROOT)/.host/entry; \
+	fi   
+	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	@touch $(BUILDROOT)/.buildok
