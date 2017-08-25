@@ -701,7 +701,9 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "$(INFOPFX) There are unmet dependencies. Preparing deps meta-package..."' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$(TARGET)" ]; then \
-	   echo '  sed -i -e '\''/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^)]*)\)\?,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^)]*)\)\?$$/ \1:$(TARGET)\2/ }; /^[[:space:]]/ { s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^)]*)\)\?,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^:,()[:space:]]\+\)\([[:space:]]\+([^)]*)\)\?$$/ \1:$(TARGET)\2/ }; }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
+	  echo ' sed -i -e '\''/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; /^[[:space:]]/ { s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
+	  echo ' BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
+	  echo ' export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo '  sed -i -e '\''/^#/ d'\'' debian/control' >>$(BUILDROOT)/.host/entry
 	@echo '  mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
@@ -737,7 +739,12 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry; \
 	   echo 'sed -i -e "/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry; \
-	   echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry; \
+	   if [ "x$(TARGET)" != "x" ]; then \
+	     echo '  sed -i -e '\''/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; /^[[:space:]]/ { s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
+	     echo '  BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
+	     echo '  export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
+	   fi; \
+	   echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)) $${BUILDOPTS}; then' >>$(BUILDROOT)/.host/entry; \
 	   echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry; \
 	   echo '  ret=1' >>$(BUILDROOT)/.host/entry; \
 	   echo 'else' >>$(BUILDROOT)/.host/entry; \
@@ -770,8 +777,11 @@ cleanpkg: $(BUILDROOT)/.configured
 	@echo '$(INFOPFX) Searching for previous *.build-deps package...'
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'PKGS=$$(dpkg -l | grep build-deps | awk '\'{ print $$\2 }\'')' >>$(BUILDROOT)/.host/entry
-	@echo '[ -z "$${PKGS}"  ] || echo Deleting: "$${PKGS}"' >>$(BUILDROOT)/.host/entry
-	@echo '[ -z "$${PKGS}"  ] || (echo "$${PKGS}" | xargs dpkg -P)' >>$(BUILDROOT)/.host/entry
+	@echo 'if [ -n "$${PKGS}"  ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '  echo Deleting: "$${PKGS}"' >>$(BUILDROOT)/.host/entry
+	@echo '  echo "$${PKGS}" | xargs dpkg -P' >>$(BUILDROOT)/.host/entry
+	@echo '  apt-get -y autoremove ' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
@@ -796,7 +806,7 @@ cleanpkg: $(BUILDROOT)/.configured
 ##
 ##     The `NOCLEAN=<anything>` parameter can be used to instruct
 ## the `dpkg-buildpackage` tool to skip process of clean it's build directory
-buildpkg: install-builddeps cleanpkg
+buildpkg: | cleanpkg install-builddeps 
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
@@ -809,7 +819,11 @@ buildpkg: install-builddeps cleanpkg
 	@echo 'BUILDOPTS="-F -us -uc"' >>$(BUILDROOT)/.host/entry
 	@if [ "x$(NOCLEAN)" != "x"  ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -nc"' >>$(BUILDROOT)/.host/entry; \
-	fi   
+	fi  
+	@if [ "x$(TARGET)" != "x" ]; then \
+	  echo 'BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
+	  echo 'export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
@@ -833,7 +847,7 @@ buildpkg: install-builddeps cleanpkg
 ## repository name (and therefore, the name of its directory) given
 ## at pocket initialization (use `show-config` without parameters to
 ## get it).
-rebuildpkg: getsource install-builddeps
+rebuildpkg: | getsource cleanpkg install-builddeps
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
 	@rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
@@ -843,7 +857,12 @@ rebuildpkg: getsource install-builddeps
 	@echo '    export CONFIG_SITE=/etc/dpkg-cross/cross-config.$(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo '    export DEB_BUILD_OPTIONS=nocheck' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
-	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) -us -uc' >>$(BUILDROOT)/.host/entry
+	@echo 'BUILDOPTS="-us -uc"' >>$(BUILDROOT)/.host/entry
+	@if [ -n "$(TARGET)" ]; then \	  
+	  echo 'BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
+	  echo 'export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
+	fi
+	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	@touch $(BUILDROOT)/.buildok
