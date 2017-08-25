@@ -1,3 +1,24 @@
+pocket (0.2.13-12) experimental; urgency=low
+
+  *  Fix: remove all (previously installed) *-builddeps packages 
+          during process of 'cleanpkg' target.	    
+          Sometimes buildprocess stoped because this package
+          stay in unconfigured state (iU)
+          Also call "apt-get -y autoremove" to deinstall 
+          all (previously installed) dependencies 
+  *  Fix: add rebuildpkg target dependency from cleanpkg target          
+  *  Fix: mark rebuildpkg and build target dependencies as order depedencies          
+  *  Fix: allow use of Network during process of 'buildpkg' target	
+          Some packages may require network connection for building.
+  *  Improve: Added new option NOCLEAN for buildpkg target
+          to instruct dpkg-buildpackage tool do not clean it's build directory
+  *  Improve: Added more correct processing of BuildDepends with 
+          build profiles and other keyword with braces ( Ex: dependecy <cross> [!armel] (>=1.1) ) 
+  *  Improve: Added exporting of buildprofile <cross> in case of cross
+          compilation during building & dependecy resolving process.         
+
+ -- Alexander Buev <a.buev@metrotek.spb.ru>  Wed, 23 Aug 2017 18:10:49 +0400
+
 pocket (0.2.13-11) experimental; urgency=low
 
   * Fix .orig.tar.gz creation: do not include the epoch number into the filename.
