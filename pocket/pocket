@@ -114,6 +114,9 @@ Action wrappers:
   sync-out <to>     complementary to the above action supplying <to>
                     directory as TO=<to>;
 
+  copy-results <to>   copy result files (packages) to specified directory <to>
+                      directory as TO=<to>;
+
   shell [--rooter] [ -- command... ] invokes the Pocketfile \`shell\`
                                      action; the option \`--rooter\`
                               passes \`ROLE=rooter\` parameter;
@@ -350,6 +353,16 @@ else
             [ -n "$dir" ] || \
                 fatal 'Destination directory is not specified\n'
             invoke 'sync-out' TO="$dir" "$@"
+            ;;
+        copy-results)
+            dir=
+            if [ $# -gt 0 ]; then
+                dir="$(getdir "$1")"
+                shift
+            fi
+            [ -n "$dir" ] || \
+                fatal 'Destination directory is not specified\n'
+            invoke 'copy-results' TO="$dir" "$@"
             ;;
         shell|install-shell)
             role=; params=; cmd=

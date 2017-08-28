@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.11.6
+POCKET_VERSION = 0.2.11.13
 
 
 # Customization section
@@ -657,12 +657,23 @@ sync-out: $(BUILDROOT)/.configured
 	@echo "$(INFOPFX) Update files in $(abspath $(TO)) from the builder home dir"
 	rsync -a --inplace $(if $(UPDATE),,--update --existing) $(BUILDROOT)$(BUILDER_HOME)/$(SOURCEDIR)/ $(abspath $(TO))
 
+##
+## * `copy-results` Copy all build result files (packages) to specified directory
+## `TO=<path>` destination  directory path.
+##
+copy-results: $(BUILDROOT)/.buildok
+	$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the destination directory to copy into with 'TO=')))	
+	@echo "$(INFOPFX) Copy result files to $(abspath $(TO)) from the builder dir $(BUILDROOT)$(BUILDER_HOME)"
+	find "$(BUILDROOT)$(BUILDER_HOME)" \
+	 -maxdepth 1 -mindepth 1 -type f -not -name '.*' \
+	 '(' -name '*.deb' -or -name '*.dsc' -or -name '*.tar*' -or -name '*.changes' ')' \
+	 -execdir "cp" "{}" "$(TO)" ";"
 
 gencontrol:
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
-	@echo '[ -e debian/pocket ] || exit 0' >>$(BUILDROOT)/.host/entry
+	@echo '[ -f debian/pocket ] || exit 0' >>$(BUILDROOT)/.host/entry
 	@echo 'cp -a debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo 'touch -r debian/control /tmp/control.orig' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -n "$(TARGET)" -a "$(TARGET)" != "$$(dpkg --print-architecture)" ]; then' >>$(BUILDROOT)/.host/entry
@@ -697,7 +708,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry
 	@echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry
 	@echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry
-	@echo 'sed -i -e "/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry
+	@echo 'sed -i -e "/^Build-Depends[^:]*:/I,/^[^[:space:]]/ { /^Build-Depends[^:]*:/I { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry
 	@echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "$(INFOPFX) There are unmet dependencies. Preparing deps meta-package..."' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$(TARGET)" ]; then \
@@ -738,7 +749,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry; \
 	   echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry; \
 	   echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry; \
-	   echo 'sed -i -e "/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry; \
+	   echo 'sed -i -e "/^Build-Depends[^:]*:/I,/^[^[:space:]]/ { /^Build-Depends[^:]*:/I { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry; \
 	   if [ "x$(TARGET)" != "x" ]; then \
 	     echo '  sed -i -e '\''/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; /^[[:space:]]/ { s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
 	     echo '  BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
@@ -762,6 +773,8 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 ## * `cleanpkg`    Clean (delete) the files produced by the last
 ## package building procedure. The wildcard includes: `*.deb`,
 ## `*.dsc`, `*.changes` and `*.tar.*`.
+##     The `CLEANDEP=<anything>` parameter can be used to 
+## remove all previously installed (as build dependency) packages 
 cleanpkg: $(BUILDROOT)/.configured
 	@echo "$(INFOPFX) Deleting all built packages..."
 	@rm -fv $(BUILDROOT)/.buildok
@@ -780,7 +793,9 @@ cleanpkg: $(BUILDROOT)/.configured
 	@echo 'if [ -n "$${PKGS}"  ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '  echo Deleting: "$${PKGS}"' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "$${PKGS}" | xargs dpkg -P' >>$(BUILDROOT)/.host/entry
-	@echo '  apt-get -y autoremove ' >>$(BUILDROOT)/.host/entry
+	@if [ -n "$(CLEANDEP)" ]; then \
+ 	  echo '  apt-get -y autoremove ' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
