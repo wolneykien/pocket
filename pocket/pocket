@@ -73,6 +73,8 @@ Options:
   -n, --dry-run  print the commands that would be executed, but do
                  not execute them;
 
+  -j --jobs <number>    limit number of processors to use for build process;                 
+
   -h, --help     show this help page and exit;
 
   -V, --version  print the program version information and exit.
@@ -143,7 +145,7 @@ quote()
 myargs=
 while [ $# -gt 0 ]; do
     case "$1" in
-        -C|--dir|-a|--arch|-t|--target|-r|--repo)
+        -C|--dir|-a|--arch|-t|--target|-r|--repo|-j|-jobs)
             if [ $# -le 1 ]; then
                 show_usage
                 exit 1
@@ -161,9 +163,9 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,r:,N,q,w,d,n,h,V -l dir:,arch:,target:,repo:,network,quiet,print-dirs,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
+OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,r:,j:,N,q,w,d,n,h,V -l dir:,arch:,target:,repo:,jobs:,network,quiet,print-dirs,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
 
-dir=; quiet=; printdirs=; debug=; dry=; arch=; target=; network=; reponame=
+dir=; quiet=; printdirs=; debug=; dry=; arch=; target=; network=; reponame=; cpucnt=
 
 argparse() {
     while :; do
@@ -178,6 +180,7 @@ argparse() {
             -N|--network) network=-n;;
             -q|--quiet) quiet=-q;;
             -w|--print-dirs) printdirs=-w;;
+            -j|--jobs) shift; cpucnt="$1";;
             -d|--debug)
                 [ -n "$debug" ] || debug=0
             debug=$((debug + 1))
@@ -218,7 +221,8 @@ do_invoke()
              ${arch:+ARCH="$arch"} \
              ${target:+TARGET="$target"} \
              ${network:+SHARE_NETWORK=yes} \
-             ${reponame:+OUTNAME="$reponame"}
+             ${reponame:+OUTNAME="$reponame"} \
+             ${cpucnt:+CPUCNT="$cpucnt"}
 }
 
 invoke()

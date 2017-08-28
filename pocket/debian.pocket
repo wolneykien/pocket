@@ -821,6 +821,10 @@ cleanpkg: $(BUILDROOT)/.configured
 ##
 ##     The `NOCLEAN=<anything>` parameter can be used to instruct
 ## the `dpkg-buildpackage` tool to skip process of clean it's build directory
+##
+##     The `CPUCNT=<number>` parameter can be used to instruct
+## the `dpkg-buildpackage` tool to limit usage of system cpu cores
+##
 buildpkg: | cleanpkg install-builddeps 
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@rm -f $(BUILDROOT)/.buildok
@@ -838,6 +842,9 @@ buildpkg: | cleanpkg install-builddeps
 	@if [ "x$(TARGET)" != "x" ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
 	  echo 'export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
+	fi
+	@if [ "x$(CPUCNT)" != "x" ]; then \
+	  echo 'BUILDOPTS="$${BUILDOPTS} -j$(CPUCNT)"' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
@@ -862,6 +869,10 @@ buildpkg: | cleanpkg install-builddeps
 ## repository name (and therefore, the name of its directory) given
 ## at pocket initialization (use `show-config` without parameters to
 ## get it).
+##
+##     The `CPUCNT=<number>` parameter can be used to instruct
+## the `dpkg-buildpackage` tool to limit usage of system cpu cores
+##
 rebuildpkg: | getsource cleanpkg install-builddeps
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
 	@rm -f $(BUILDROOT)/.buildok
@@ -876,6 +887,9 @@ rebuildpkg: | getsource cleanpkg install-builddeps
 	@if [ -n "$(TARGET)" ]; then \	  
 	  echo 'BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
 	  echo 'export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
+	fi
+	@if [ "x$(CPUCNT)" != "x" ]; then \
+	  echo 'BUILDOPTS="$${BUILDOPTS} -j$(CPUCNT)"' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry

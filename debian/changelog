@@ -8,6 +8,7 @@ pocket (0.2.13-13) experimental; urgency=low
   *  Fix: gencontrol target now exit normaly if where is 'debian/pocket' dir
   *  Fix: debian/control Build-Depends field - now it's possible to build
          pocket in pocket          
+  *  Improve: added -j <cpunum> option to limit usage of cpucores 
 
  -- Alexander Buev <san@zzz.spb.ru>  Mon, 28 Aug 2017 15:02:58 +0400
 
