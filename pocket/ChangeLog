@@ -1,3 +1,17 @@
+2017-08-28 Alexander Buev <san@zzz.spb.ru> 
+
+	* debian.pocket (0.2.13.13)
+
+	  *  Fix: Searching for debian/control field 'Build-Depends' now are case insensivitive
+	  *  Improve: added CLEANDEP parameter for target 'cleanpkg'
+	              to be able optionaly remove all installed dependency packages
+	  *  Improve: added action copy-results for copying result of build
+	              from pocket chroot to specified directory
+	  *  Fix: gencontrol target now exit normaly if where is 'debian/pocket' dir
+	  *  Fix: debian/control Build-Depends field - now it's possible to build
+	          pocket in pocket          
+	  *  Improve: added -j <cpunum> option to limit usage of cpucores 
+
 2017-08-23 Alexander Buev <a.buev@metrotek.spb.ru>
 
 	* debian.pocket (0.2.11.7)
