@@ -10,6 +10,8 @@ pocket (0.2.13-14) experimental; urgency=low
               but with no arch specified in control file.   
               (Now we ask apt-cache to detect real depedency arch)
 
+ -- Alexander Buev <san@zzz.spb.ru>  Mon, 04 Sep 2017 19:16:56 +0400
+
 pocket (0.2.13-13) experimental; urgency=low
 
   *  Fix: Searching for debian/control field 'Build-Depends' now are case insensivitive
