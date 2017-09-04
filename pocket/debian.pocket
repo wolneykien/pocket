@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.11.13
+POCKET_VERSION = 0.2.11.14
 
 
 # Customization section
@@ -691,6 +691,135 @@ gencontrol:
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 
+define add_processing_deps_fields
+	@echo '# --- ' >>$(4)
+	@echo '' >>$(4) 
+	@echo 'select_prefered_arch() {' >>$(4) 
+	@echo '  local DEPNAME="$${1}"' >>$(4) 
+	@echo '  shift 1' >>$(4) 
+	@echo '  local ARCHES="$$@"' >>$(4) 
+	@echo '  for a in $${ARCHES} ; do' >>$(4)
+	@echo '    if apt-cache show $${DEPNAME}:$${a} > /dev/null 2>&1 ; then ' >>$(4)
+	@echo '      echo "$${a}"' >>$(4)
+	@echo '      return' >>$(4)
+	@echo '    fi' >>$(4)
+	@echo '  done' >>$(4)
+	@echo '  echo "all"' >>$(4)
+	@echo '}' >>$(4) 
+	@echo '' >>$(4) 
+	@echo 'extract_control_field() {' >>$(4) 
+	@echo '  local FILE="$${1}"' >>$(4)
+	@echo '  local VALUE=""' >>$(4)
+	@echo '  local NAME="$${2}"' >>$(4) 
+	@echo '  # extract field value as is' >>$(4) 
+	@echo '  VALUE="$$(sed -n -e '\''/^'\'\"'$${NAME}'\"\'':/I,/^[^[:space:]].*/ { 1,1 s/^[^[:space:]]\+://; /^[^[:space:]]/d; /.*/p }'\' ' "$${FILE}" ' ')"' >>$(4)
+	@echo '  # remove newline and spaces' >>$(4) 
+	@echo '  VALUE="$$(echo "$${VALUE}" | tr '\''\n'\' \' \' ' | sed "s/[[:space:]]\+/ /g" )"'  >>$(4)
+	@echo '  echo "$${VALUE}"'  >>$(4)
+	@echo '}' >>$(4) 
+	@echo '' >>$(4) 
+	@echo 'process_deps_field() {' >>$(4) 
+	@echo '  local FILE="$${1}"' >>$(4)
+	@echo '  local FIELD="$${2}"' >>$(4)
+	@echo '  local NATIVEARCH="$(2)"' >>$(4)
+	@echo '  local TARGETARCH="$(3)"' >>$(4)
+	@echo '  local MULTIARCH="$${3}"' >>$(4)
+	@echo '  DEPENDS="$$(extract_control_field $${FILE} $${FIELD})"' >>$(4) 
+	@echo '  #echo "***Depends1: $${DEPENDS}"' >>$(4)
+	@echo '  # Prepare string contained only depname:deparch... ' >>$(4)
+	@echo '  DEPENDS="$$(echo "$${DEPENDS}" | sed -e '\''s/[[:space:]]*\(\([a-z][a-z0-9.+-]*\)\(:[a-z0-9+-]\+\)\{0,1\}\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)/ \1/g '\''  )"'  >>$(4)
+	@echo '  #echo "***Depends2: $${DEPENDS}"' >>$(4)
+	@echo '  for d in $${DEPENDS}; do' >>$(4) 
+	@echo '    DEPNAME="$$(echo "$${d}" | awk -F ":" '\''{ print $$1 }'\'' | sed s/[^0-9a-z.+-]//g )"'  >>$(4)
+	@echo '    DEPARCH="$$(echo "$${d}" | awk -F ":" '\''{ print $$2 }'\''| sed s/[^0-9a-z+-]//g )"'  >>$(4)
+	@echo '    # as default we do not want to replace arch'  >>$(4)
+	@echo '    NEWARCH="$${DEPARCH}"'  >>$(4)
+	@echo '    case "$${DEPARCH}" in' >>$(4)
+	@echo '      native)' >>$(4)
+	@echo '         case "$${MULTIARCH}" in ' >>$(4)
+	@echo '           foreign)' >>$(4)
+ 	@echo '             echo "$(INFOPFX) Field $${FIELD} dep $${DEPNAME} has incorrect arch $${DEPARCH} for Multi-Arch $${MULTIARCH}"' >>$(4)
+ 	@echo '             return 1' >>$(4)
+	@echo '           ;;' >>$(4)
+	@echo '           same|allowed)' >>$(4)
+	@echo '             NEWARCH="$${NATIVEARCH}";' >>$(4)
+	@echo '           ;;' >>$(4)
+	@echo '           *)' >>$(4)
+ 	@echo '             echo "$(INFOPFX) Incorrect value of Multi-Arch $${MULTIARCH}"' >>$(4)
+ 	@echo '             return 1' >>$(4)
+	@echo '           ;;' >>$(4)
+	@echo '         esac ' >>$(4)
+	@echo '      ;;' >>$(4)
+	@echo '      any)' >>$(4) 
+	@echo '         case "$${MULTIARCH}" in ' >>$(4)
+	@echo '           allowed)' >>$(4)
+	@echo '             NEWARCH="$$(select_prefered_arch $${d} $${NATIVEARCH} $${TARGETARCH} )"' >>$(4) 
+	@echo '           ;;' >>$(4)
+	@echo '           foreign|same)' >>$(4)
+ 	@echo '             echo "$(INFOPFX) Field $${FIELD} dep $${DEPNAME} has incorrect arch $${DEPARCH} for Multi-Arch $${MULTIARCH}"' >>$(4)
+ 	@echo '             return 1' >>$(4)
+	@echo '           ;;' >>$(4)
+	@echo '           *)' >>$(4)
+ 	@echo '             echo "$(INFOPFX) Incorrect value of Multi-Arch $${MULTIARCH}"' >>$(4)
+ 	@echo '             return 1' >>$(4)
+	@echo '           ;;' >>$(4)
+	@echo '         esac ' >>$(4)
+	@echo '      ;;' >>$(4)
+	@echo '      "")' >>$(4) 
+	@echo '         case "$${MULTIARCH}" in ' >>$(4)
+	@echo '           foreign)' >>$(4)
+	@echo '             NEWARCH="$$(select_prefered_arch $${d} $${NATIVEARCH} $${TARGETARCH})"'>>$(4) 
+	@echo '           ;;' >>$(4)
+	@echo '           same|allowed)' >>$(4)
+	@echo '             # if where are package with all arch use it othewise use target arch' >>$(4)
+	@echo '             DEPCACHEARCH="$$(apt-cache show $${DEPNAME} 2> /dev/null | grep Archi | sed "s/.*:[[:space:]]*//; 0,/.*/!d")" ' >>$(4)
+	@echo '             if [ "$${DEPCACHEARCH}" = "all" ]; then NEWARCH="all";' >>$(4)
+ 	@echo '             else NEWARCH="$${TARGETARCH}"; fi' >>$(4)
+	@echo '           ;;' >>$(4)
+	@echo '           *)' >>$(4)
+ 	@echo '             echo "$(INFOPFX) Incorrect value of Multi-Arch $${MULTIARCH}"' >>$(4)
+ 	@echo '             return 1' >>$(4)
+	@echo '           ;;' >>$(4)
+	@echo '         esac ' >>$(4)
+	@echo '      ;;' >>$(4)
+	@echo '    esac' >>$(4)
+	@echo '    if [ ! "$${DEPARCH}" = "$${NEWARCH}" ]; then ' >>$(4)
+	@echo '       # prepare strings for replacing' >>$(4)
+	@echo '       local FROM="$${DEPNAME}"; [ -n "$${DEPARCH}" ] && FROM="$${FROM}:$${DEPARCH}"' >>$(4)
+	@echo '       local TO="$${DEPNAME}"; [ -n "$${NEWARCH}" ] && TO="$${TO}:$${NEWARCH}"' >>$(4)
+	@echo '       # replacing old dependency to new ' >>$(4)
+	@echo '       sed -i -e '\''/^'\'\"'$${FIELD}'\"\''[^:]*:/I,/^[^[:space:]]/ { 0,/^[^[:space:]][^:]*:/I { s/^\([^[:space:]][^:]*\):[[:space:]]*/\1: /I; s/[[:space:]]\+\('\'\"'$${FROM}'\"\''\)\(\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)\)/ '\'\"'$${TO}'\"\''\2/g; }; /^[[:space:]]/ { s/[[:space:]]\+\('\'\"'$${FROM}'\"\''\)\(\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)\)/ '\'\"'$${TO}'\"\''\2/g; }; }'\'   '"$${FILE}"' >>$(4)
+ 	@echo '      echo "$(INFOPFX) Field:\"$${FIELD}\" Dep:\"$${DEPNAME}\" Arch corrected:\"$${DEPARCH}\"->\"$${NEWARCH}\""' >>$(4)
+	@echo '    fi' >>$(4) 
+	@echo '  done' >>$(4) 
+	@echo '}'  >>$(4)
+	@echo '' >>$(4) 
+	@echo '# Extract Multi-Arch field from control file ' >>$(4)
+	@echo 'MULTIARCH="$$(extract_control_field "$(1)" Multi-Arch)"' >>$(4) 
+	@echo 'MULTIARCH="$$(echo "$${MULTIARCH}" | sed -e "s/[[:space:]]//g")"'  >>$(4)
+	@echo '#echo "***MultiArch: $${MULTIARCH}"' >>$(4)
+	@echo 'case "$${MULTIARCH}" in' >>$(4)
+	@echo '  native|foreign);; ' >>$(4)
+	@echo '  "")' >>$(4)
+	@echo '    MULTIARCH="same"' >>$(4) 
+	@echo '  ;;' >>$(4)
+	@echo '  *)' >>$(4)
+ 	@echo '    echo "$(INFOPFX) Incorrect value of Multi-Arch \"$${MULTIARCH}\""' >>$(4)
+	@echo '    exit 1' >>$(4) 
+	@echo '  ;;' >>$(4)
+	@echo 'esac ' >>$(4)
+	@echo '' >>$(4) 
+	@echo 'fields="Build-Depends Build-Depends-Indep Build-Depends-Arch Build-Conflicts Build-Conflicts-Indep Build-Conflicts-Arch"' >>$(4)
+	@echo 'ret=0' >>$(4)
+	@echo 'for f in $${fields}; do ' >>$(4)
+	@echo '  process_deps_field "$(1)" "$${f}" "$${MULTIARCH}" || ret=$$?' >>$(4)
+	@echo 'done ' >>$(4)
+	@echo '[ $${ret} -eq 0 ] || exit ${ret}' >>$(4)
+	@echo 'echo $(INFOPFX) build deps fields succesfuly corrected' >>$(4) 
+	@echo '' >>$(4) 
+	@echo '# --- ' >>$(4)
+endef 
+
 ##
 ## * `install-builddeps`    Install the packages that are required
 ## to build the target package from the source code. Installs all the
@@ -708,11 +837,10 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry
 	@echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry
 	@echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry
-	@echo 'sed -i -e "/^Build-Depends[^:]*:/I,/^[^[:space:]]/ { /^Build-Depends[^:]*:/I { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry
+	$(call add_processing_deps_fields,debian/control,$(ARCH),$(TARGET),$(BUILDROOT)/.host/entry)
 	@echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "$(INFOPFX) There are unmet dependencies. Preparing deps meta-package..."' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$(TARGET)" ]; then \
-	  echo ' sed -i -e '\''/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; /^[[:space:]]/ { s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
 	  echo ' BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
 	  echo ' export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
 	fi
@@ -728,45 +856,44 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'exit $$ret' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
-	@if [ -e $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb ]; then \
-	   echo '$(INFOPFX) The deps meta-package was built. Installing it to satisfy the dependencies...'; \
-	   echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
-	   if [ -n "$$http_proxy" ]; then \
+        ifeq ($(shell test -e $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb && echo -n yes),yes)
+	   @echo '$(INFOPFX) The deps meta-package was built. Installing it to satisfy the dependencies...'; 
+	   @echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; 
+	   @if [ -n "$$http_proxy" ]; then \
 	     echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
 	     echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
-	   fi; \
-	   echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry; \
-	   echo 'apt-get install -f -y --no-install-recommends --allow-unauthenticated -o Debug::pkgProblemResolver=yes' >>$(BUILDROOT)/.host/entry; \
-	   ret=0; \
-	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$?; \
-	   [ $$ret -eq 0 ] || exit $$ret; \
-	   echo "$(INFOPFX) Check the build requirements again..."; \
-	   echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; \
-	   echo 'ret=0' >>$(BUILDROOT)/.host/entry; \
-	   echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry; \
-	   echo 'cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry; \
-	   echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry; \
-	   echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry; \
-	   echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry; \
-	   echo 'sed -i -e "/^Build-Depends[^:]*:/I,/^[^[:space:]]/ { /^Build-Depends[^:]*:/I { s/:native/:$$(dpkg --print-architecture)/g; }; /^[[:space:]]/ { s/:native/:$$(dpkg --print-architecture)/g; } }" debian/control' >>$(BUILDROOT)/.host/entry; \
-	   if [ "x$(TARGET)" != "x" ]; then \
-	     echo '  sed -i -e '\''/^Build-Depends[^:]*:/,/^[^[:space:]]/ { /^Build-Depends[^:]*:/ { s/^Build-Depends[^:]*:[[:space:]]*/Build-Depends: /; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; /^[[:space:]]/ { s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*,/ \1:$(TARGET)\2,/g; s/[[:space:]]\+\([^]:,()<>[:space:]]\+\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\?[[:space:]]*$$/ \1:$(TARGET)\2/ }; }'\'' debian/control' >>$(BUILDROOT)/.host/entry; \
-	     echo '  BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
-	     echo '  export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
-	   fi; \
-	   echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)) $${BUILDOPTS}; then' >>$(BUILDROOT)/.host/entry; \
-	   echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry; \
-	   echo '  ret=1' >>$(BUILDROOT)/.host/entry; \
-	   echo 'else' >>$(BUILDROOT)/.host/entry; \
-	   echo '  echo "$(INFOPFX) Build requirements are met. Ready to build"' >>$(BUILDROOT)/.host/entry; \
-	   echo 'fi' >>$(BUILDROOT)/.host/entry; \
-	   echo 'exit $$ret' >>$(BUILDROOT)/.host/entry; \
-	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
-	else \
-	   echo '$(INFOPFX) Build requirements are met. Ready to build'; \
-	fi
+	   fi; 
+	   @echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry; 
+	   @echo 'apt-get install -f -y --no-install-recommends --force-yes --allow-unauthenticated -o Debug::pkgProblemResolver=yes' >>$(BUILDROOT)/.host/entry; 
+	   ret=0 
+	   @chmod 0755 $(BUILDROOT)/.host/entry 
+	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$? 
+	   [ $$ret -eq 0 ] || exit $$ret 
+	   @echo "$(INFOPFX) Check the build requirements again..." 
+	   @echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry 
+	   @echo 'ret=0' >>$(BUILDROOT)/.host/entry 
+	   @echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry 
+	   @echo 'cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry 
+	   @echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry 
+	   @echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry 
+	   $(call add_processing_deps_fields,debian/control,$(ARCH),$(TARGET),$(BUILDROOT)/.host/entry) 
+	   @echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry 
+	   @if [ "x$(TARGET)" != "x" ]; then \
+	     @echo '  BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
+	     @echo '  export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
+	   fi; 
+	   @echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)) $${BUILDOPTS}; then' >>$(BUILDROOT)/.host/entry; 
+	   @echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry; 
+	   @echo '  ret=1' >>$(BUILDROOT)/.host/entry; 
+	   @echo 'else' >>$(BUILDROOT)/.host/entry; 
+	   @echo '  echo "$(INFOPFX) Build requirements are met. Ready to build"' >>$(BUILDROOT)/.host/entry; 
+	   @echo 'fi' >>$(BUILDROOT)/.host/entry; 
+	   @echo 'exit $$ret' >>$(BUILDROOT)/.host/entry; 
+	   @chmod 0755 $(BUILDROOT)/.host/entry; 
+	   $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; 
+         else 
+	   echo '$(INFOPFX) Build requirements are met. Ready to build'; 
+         endif
 
 
 ##

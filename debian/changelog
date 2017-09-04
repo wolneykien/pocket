@@ -1,3 +1,15 @@
+pocket (0.2.13-14) experimental; urgency=low
+
+  *  Improve: Added more strong BuildDepends field parser
+  *  Improve: Added support for '|' symbol for BuildDepends fields 'Or' operation
+  *  Improve: Added support for Multi-Arch field of control file
+  *  Improve: Added support for fields: 
+              BuildDepends-Indep, BuildDepends-Arch, 
+              BuildConflicts, BuildConflicts-Indep, BuildConflics-Arch.
+  *  Improve: Added ability to install build dependencies with real 'all' arch
+              but with no arch specified in control file.   
+              (Now we ask apt-cache to detect real depedency arch)
+
 pocket (0.2.13-13) experimental; urgency=low
 
   *  Fix: Searching for debian/control field 'Build-Depends' now are case insensivitive

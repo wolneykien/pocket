@@ -2,7 +2,7 @@ Source: pocket
 Section: main/devel
 Priority: extra
 Maintainer: Paul Wolneykien <manowar@altlinux.org>
-Build-Depends: debhelper:all (>= 8.0.0), dh-autoreconf:all, help2man:native, ruby-ronn:all, pkg-config
+Build-Depends: debhelper (>= 8.0.0), dh-autoreconf, help2man:native, ruby-ronn, pkg-config
 Standards-Version: 3.9.2
 Homepage: http://metrotek.spb.ru/
 
