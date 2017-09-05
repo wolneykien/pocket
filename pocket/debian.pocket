@@ -836,7 +836,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	  echo ' export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo '  sed -i -e '\''/^#/ d'\'' debian/control' >>$(BUILDROOT)/.host/entry
-	@echo '  mk-build-deps || ret=$$?' >>$(BUILDROOT)/.host/entry
+	@echo '  mk-build-deps debian/control || ret=$$?' >>$(BUILDROOT)/.host/entry
 	@echo '  if [ $$ret -eq 0 ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo '  fi' >>$(BUILDROOT)/.host/entry
@@ -847,7 +847,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'exit $$ret' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
-        ifeq ($(shell test -e $(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb && echo -n yes),yes)
+        ifeq ($(shell test -e "$(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb" && echo -n yes),yes)
 	   @echo '$(INFOPFX) The deps meta-package was built. Installing it to satisfy the dependencies...'; 
 	   @echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; 
 	   @if [ -n "$$http_proxy" ]; then \
