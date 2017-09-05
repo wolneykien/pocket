@@ -724,14 +724,25 @@ define add_processing_deps_fields
 	@echo '  local NATIVEARCH="$(2)"' >>$(4)
 	@echo '  local TARGETARCH="$(3)"' >>$(4)
 	@echo '  DEPENDS="$$(extract_control_field $${FILE} $${FIELD})"' >>$(4) 
+	@echo '  #echo "***Depends1: $${DEPENDS}"' >>$(4)
+	@echo '  # Prepare string contained only depname:deparch... ' >>$(4)
+	@echo '  DEPENDS="$$(echo "$${DEPENDS}" | sed -e '\''s/[[:space:]]*\(\([a-z][a-z0-9.+-]*\)\(:[a-z0-9+-]\+\)\{0,1\}\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)/ \1/g '\''  )"'  >>$(4)
+	@echo '  #echo "***Depends2: $${DEPENDS}"' >>$(4)
+	@echo '  for d in $${DEPENDS}; do' >>$(4) 
+	@echo '    DEPNAME="$$(echo "$${d}" | awk -F ":" '\''{ print $$1 }'\'' | sed s/[^0-9a-z.+-]//g )"'  >>$(4)
+	@echo '    DEPARCH="$$(echo "$${d}" | awk -F ":" '\''{ print $$2 }'\''| sed s/[^0-9a-z+-]//g )"'  >>$(4)
+	@echo '    if ! apt-cache show $${DEPNAME} > /dev/null 2>&1 ; then '  >>$(4)
+ 	@echo '      echo "$(INFOPFX) $${FIELD} dep $${DEPNAME} not found"' >>$(4)
+	@echo '      return 1'  >>$(4)
+	@echo '    fi '  >>$(4)
 	@echo '    DEPMULTIARCH="$$(apt-cache show $${DEPNAME} 2> /dev/null | grep "^Multi-Arch" | sed '\''s/.*:[[:space:]]*//; 0,/.*/!d'\'')" ' >>$(4)
 	@echo '    #echo "***MultiArch: $${MULTIARCH}"' >>$(4)
 	@echo '    case "$${DEPMULTIARCH}" in' >>$(4)
 	@echo '      native|foreign|same);; ' >>$(4)
-	@echo '      "") MULTIARCH="same";; ' >>$(4) 
+	@echo '      "") DEPMULTIARCH="same";; ' >>$(4) 
 	@echo '       *)' >>$(4)
  	@echo '          echo "$(INFOPFX) Incorrect value of \"$${DEPNAME}\" Multi-Arch \"$${DEPMULTIARCH}\""' >>$(4)
-        @echo '          MULTIARCH="same"' >>$(4)
+        @echo '          DEPMULTIARCH="same"' >>$(4)
 	@echo '       ;;' >>$(4)
 	@echo '    esac ' >>$(4)
 	@echo '    # as default we do not want to replace arch'  >>$(4)
@@ -806,7 +817,9 @@ endef
 ##     The `TARGET=<arch>` parameter can be used to specify the target
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
+.ONESHELL:
 install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/.buildenv$(if $(TARGET),.$(TARGET)) gencontrol
+	# 	
 	@echo "$(INFOPFX) Check and install the build requirements..."
 	@echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry
 	@echo 'ret=0' >>$(BUILDROOT)/.host/entry
@@ -842,7 +855,11 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	     echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   fi; 
 	   @echo 'dpkg --unpack $(BUILDER_HOME)/.build-deps.deb' >>$(BUILDROOT)/.host/entry; 
-	   @echo 'apt-get install -f -y --no-install-recommends --force-yes --allow-unauthenticated -o Debug::pkgProblemResolver=yes' >>$(BUILDROOT)/.host/entry; 
+	   @echo 'apt-get install -f -y --no-install-recommends --allow-unauthenticated -o Debug::pkgProblemResolver=yes' >>$(BUILDROOT)/.host/entry; 
+	   @echo 'if ! dpkg -l | awk '\''{ print $$2 }'\'' | grep -qE '\''.*-build-deps'\'' ; then  ' >>$(BUILDROOT)/.host/entry; 
+	   @echo '  echo $(INFOPFX) Build dependecies not installed correctly see log above'  >>$(BUILDROOT)/.host/entry; 
+	   @echo '  exit 1 ' >>$(BUILDROOT)/.host/entry; 
+	   @echo 'fi' >>$(BUILDROOT)/.host/entry; 
 	   ret=0 
 	   @chmod 0755 $(BUILDROOT)/.host/entry 
 	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$? 
@@ -857,20 +874,20 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   $(call add_processing_deps_fields,debian/control,$(ARCH),$(TARGET),$(BUILDROOT)/.host/entry) 
 	   @echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry 
 	   @if [ "x$(TARGET)" != "x" ]; then \
-	     @echo '  BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
-	     @echo '  export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
+	     echo '  BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
+	     echo '  export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
 	   fi; 
-	   @echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)) $${BUILDOPTS}; then' >>$(BUILDROOT)/.host/entry; 
-	   @echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry; 
-	   @echo '  ret=1' >>$(BUILDROOT)/.host/entry; 
-	   @echo 'else' >>$(BUILDROOT)/.host/entry; 
-	   @echo '  echo "$(INFOPFX) Build requirements are met. Ready to build"' >>$(BUILDROOT)/.host/entry; 
-	   @echo 'fi' >>$(BUILDROOT)/.host/entry; 
-	   @echo 'exit $$ret' >>$(BUILDROOT)/.host/entry; 
-	   @chmod 0755 $(BUILDROOT)/.host/entry; 
-	   $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; 
+	   @echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)) $${BUILDOPTS}; then' >>$(BUILDROOT)/.host/entry 
+	   @echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry 
+	   @echo '  ret=1' >>$(BUILDROOT)/.host/entry 
+	   @echo 'else' >>$(BUILDROOT)/.host/entry 
+	   @echo '  echo "$(INFOPFX) Build requirements are met. Ready to build"' >>$(BUILDROOT)/.host/entry 
+	   @echo 'fi' >>$(BUILDROOT)/.host/entry 
+	   @echo 'exit $$ret' >>$(BUILDROOT)/.host/entry 
+	   @chmod 0755 $(BUILDROOT)/.host/entry 
+	   $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry 
          else 
-	   echo '$(INFOPFX) Build requirements are met. Ready to build'; 
+	   echo '$(INFOPFX) Build requirements are met. Ready to build' 
          endif
 
 
