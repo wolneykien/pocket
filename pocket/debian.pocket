@@ -724,28 +724,45 @@ define add_processing_deps_fields
 	@echo '  local NATIVEARCH="$(2)"' >>$(4)
 	@echo '  local TARGETARCH="$(3)"' >>$(4)
 	@echo '  DEPENDS="$$(extract_control_field $${FILE} $${FIELD})"' >>$(4) 
-	@echo '  #echo "***Depends1: $${DEPENDS}"' >>$(4)
+ 	@echo '  #echo "$(INFOPFX) $${FIELD} deps \"$${DEPENDS}\""' >>$(4)
 	@echo '  # Prepare string contained only depname:deparch... ' >>$(4)
 	@echo '  DEPENDS="$$(echo "$${DEPENDS}" | sed -e '\''s/[[:space:]]*\(\([a-z][a-z0-9.+-]*\)\(:[a-z0-9+-]\+\)\{0,1\}\)\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)/ \1/g '\''  )"'  >>$(4)
-	@echo '  #echo "***Depends2: $${DEPENDS}"' >>$(4)
+ 	@echo '  #echo "$(INFOPFX) $${FIELD} deps \"$${DEPENDS}\""' >>$(4)
 	@echo '  for d in $${DEPENDS}; do' >>$(4) 
+	@echo '    # separate name and arch of dep' >>$(4)
 	@echo '    DEPNAME="$$(echo "$${d}" | awk -F ":" '\''{ print $$1 }'\'' | sed s/[^0-9a-z.+-]//g )"'  >>$(4)
 	@echo '    DEPARCH="$$(echo "$${d}" | awk -F ":" '\''{ print $$2 }'\''| sed s/[^0-9a-z+-]//g )"'  >>$(4)
-	@echo '    if ! apt-cache show $${DEPNAME} > /dev/null 2>&1 ; then '  >>$(4)
- 	@echo '      echo "$(INFOPFX) $${FIELD} dep $${DEPNAME} not found"' >>$(4)
-	@echo '      return 1'  >>$(4)
-	@echo '    fi '  >>$(4)
-	@echo '    DEPMULTIARCH="$$(apt-cache show $${DEPNAME} 2> /dev/null | grep "^Multi-Arch" | sed '\''s/.*:[[:space:]]*//; 0,/.*/!d'\'')" ' >>$(4)
-	@echo '    #echo "***MultiArch: $${MULTIARCH}"' >>$(4)
-	@echo '    case "$${DEPMULTIARCH}" in' >>$(4)
-	@echo '      native|foreign|same);; ' >>$(4)
-	@echo '      "") DEPMULTIARCH="same";; ' >>$(4) 
-	@echo '       *)' >>$(4)
- 	@echo '          echo "$(INFOPFX) Incorrect value of \"$${DEPNAME}\" Multi-Arch \"$${DEPMULTIARCH}\""' >>$(4)
-        @echo '          DEPMULTIARCH="same"' >>$(4)
-	@echo '       ;;' >>$(4)
-	@echo '    esac ' >>$(4)
+	@echo '    # check that apt-cache know about this dep ' >>$(4)
+	@echo '    if ! apt-cache show "$${DEPNAME}" > /dev/null 2>&1 ; then '  >>$(4)
+	@echo '      # if not know attempt to do anything with ' >>$(4)
+ 	@echo '      case "$${DEPARCH}" in'  >>$(4)
+	@echo '        native|any)' >>$(4)
+	@echo '          # mk-build-deps can not processing native/any -> we consider using same to not stoping process ' >>$(4)
+	@echo '          DEPMULTIARCH="same" ' >>$(4)
+ 	@echo '          echo "$(INFOPFX) $${FIELD} dep $${DEPNAME} not found in cache -> using \"$${DEPMULTIARCH}\" as Multi-Arch value"' >>$(4)
+	@echo '        ;;' >>$(4)
+	@echo '        *) ' >>$(4)
+	@echo '          # in this case we do not want to touch anything in dep arch -> use empty value to skip any other processing ' >>$(4)
+	@echo '          DEPMULTIARCH=""; ' >>$(4)
+ 	@echo '          echo "$(INFOPFX) $${FIELD} dep $${DEPNAME} not found in cache -> using as is"' >>$(4)
+	@echo '        ;;' >>$(4)
+	@echo '      esac ' >>$(4)
+	@echo '    else '  >>$(4)
+	@echo '      # if depname found in cache extract Multi-Arch value from cache' >>$(4)
+	@echo '      DEPMULTIARCH="$$(apt-cache show $${DEPNAME} 2> /dev/null | grep "^Multi-Arch" | sed '\''s/.*:[[:space:]]*//; 0,/.*/!d'\'')" ' >>$(4)
+	@echo '      # check Multi-Arch value and override if incorrect or absent' >>$(4)
+	@echo '      case "$${DEPMULTIARCH}" in' >>$(4)
+	@echo '        allowed|foreign|same);; ' >>$(4)
+	@echo '        "") DEPMULTIARCH="same";; ' >>$(4) 
+	@echo '         *)' >>$(4)
+ 	@echo '            echo "$(INFOPFX) $${FIELD} dep $${DEPNAME} wrong value of Multi-Arch:\"$${DEPMULTIARCH}\" -> using \"same\""' >>$(4)
+        @echo '            DEPMULTIARCH="same"' >>$(4)
+	@echo '         ;;' >>$(4)
+	@echo '      esac ' >>$(4)
+	@echo '    fi'  >>$(4)
+	@echo '    # ok now we have correct Multi-Arch value or \"\" if dep not found' >>$(4)
 	@echo '    # as default we do not want to replace arch'  >>$(4)
+ 	@echo '    # echo "$(INFOPFX) $${FIELD} dep $${DEPNAME}:\"$${DEPARCH}\" multi-arch \"$${DEPMULTIARCH}\""' >>$(4)
 	@echo '    NEWARCH="$${DEPARCH}"'  >>$(4)
 	@echo '    case "$${DEPARCH}" in' >>$(4)
 	@echo '      native)' >>$(4)
@@ -771,7 +788,7 @@ define add_processing_deps_fields
 	@echo '         esac ' >>$(4)
 	@echo '      ;;' >>$(4)
 	@echo '      "")' >>$(4) 
-	@echo '         # if where are package with all arch use it othewise select arch according to Multi-Arch' >>$(4)
+	@echo '         # if where are package with all arch use it othewise select arch according to Multi-Arch spec ' >>$(4)
 	@echo '         DEPCACHEARCH="$$(apt-cache show $${DEPNAME} 2> /dev/null | grep "^Archi" | sed '\''s/.*:[[:space:]]*//; 0,/.*/!d'\'')" ' >>$(4)
 	@echo '         if [ "$${DEPCACHEARCH}" = "all" ]; then NEWARCH="all";' >>$(4)
  	@echo '         else ' >>$(4)
@@ -786,13 +803,14 @@ define add_processing_deps_fields
 	@echo '         fi ' >>$(4)
 	@echo '      ;;' >>$(4)
 	@echo '    esac' >>$(4)
+	@echo '    # ok now replace arch of dep ' >>$(4)
 	@echo '    if [ ! "$${DEPARCH}" = "$${NEWARCH}" ]; then ' >>$(4)
 	@echo '       # prepare strings for replacing' >>$(4)
 	@echo '       local FROM="$${DEPNAME}"; [ -n "$${DEPARCH}" ] && FROM="$${FROM}:$${DEPARCH}"' >>$(4)
 	@echo '       local TO="$${DEPNAME}"; [ -n "$${NEWARCH}" ] && TO="$${TO}:$${NEWARCH}"' >>$(4)
 	@echo '       # replacing old dependency to new ' >>$(4)
 	@echo '       sed -i -e '\''/^'\'\"'$${FIELD}'\"\''[^:]*:/I,/^[^[:space:]]/ { 0,/^[^[:space:]][^:]*:/I { s/^\([^[:space:]][^:]*\):[[:space:]]*/\1: /I; s/[[:space:]]\+\('\'\"'$${FROM}'\"\''\)\(\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)\)/ '\'\"'$${TO}'\"\''\2/g; }; /^[[:space:]]/ { s/[[:space:]]\+\('\'\"'$${FROM}'\"\''\)\(\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)\)/ '\'\"'$${TO}'\"\''\2/g; }; }'\'   '"$${FILE}"' >>$(4)
- 	@echo '      echo "$(INFOPFX) Field:\"$${FIELD}\" Dep:\"$${DEPNAME}\" Arch corrected:\"$${DEPARCH}\"->\"$${NEWARCH}\""' >>$(4)
+ 	@echo '       echo "$(INFOPFX) $${FIELD} dep:\"$${DEPNAME}\" arch corrected:\"$${DEPARCH}\"->\"$${NEWARCH}\""' >>$(4)
 	@echo '    fi' >>$(4) 
 	@echo '  done' >>$(4) 
 	@echo '}'  >>$(4)
@@ -819,7 +837,7 @@ endef
 ## action for more information.
 .ONESHELL:
 install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/.buildenv$(if $(TARGET),.$(TARGET)) gencontrol
-	# 	
+	# This string must not started with @ symbol die to .ONESHELL used 	
 	@echo "$(INFOPFX) Check and install the build requirements..."
 	@echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry
 	@echo 'ret=0' >>$(BUILDROOT)/.host/entry
@@ -847,7 +865,7 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'exit $$ret' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
-        ifeq ($(shell test -e "$(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb" && echo -n yes),yes)
+	@if [ -f "$(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb" ]; then
 	   @echo '$(INFOPFX) The deps meta-package was built. Installing it to satisfy the dependencies...'; 
 	   @echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; 
 	   @if [ -n "$$http_proxy" ]; then \
@@ -886,9 +904,9 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	   @echo 'exit $$ret' >>$(BUILDROOT)/.host/entry 
 	   @chmod 0755 $(BUILDROOT)/.host/entry 
 	   $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry 
-         else 
+	 else 
 	   echo '$(INFOPFX) Build requirements are met. Ready to build' 
-         endif
+	 fi
 
 
 ##
