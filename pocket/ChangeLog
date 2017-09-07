@@ -8,9 +8,13 @@
 	 *  Improve: Added support for fields: 
 	             BuildDepends-Indep, BuildDepends-Arch, 
 	             BuildConflicts, BuildConflicts-Indep, BuildConflics-Arch.
-	 *  Improve: Added ability to install build dependencies with real 'all' arch
+	 *  Improve: added ability to install build dependencies with real 'all' arch
 	             but with no arch specified in control file.   
-	             (Now we ask apt-cache to detect real depedency arch)
+	             (now we ask apt-cache to detect real depedency arch)
+	 *  Fix: sync-in action now not ignore deletion of excluded files
+	 *  Improve: sync-in action as default ignore *.dsc *.changes and other debian resulting files
+	             to stop backward sync of result to source dir
+	  
 
 2017-08-28 Alexander Buev <san@zzz.spb.ru> 
 

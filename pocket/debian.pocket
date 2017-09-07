@@ -68,7 +68,7 @@ BUILDPKGLIST = build-essential devscripts equivs reprepro
 TESTPKGLIST = man
 
 # Skip patterns for the `sync-in` target
-SKIPSYNC = .git* .svn*
+SKIPSYNC = .git* .svn* *.deb *_*_*.changes *_*.orig.tar.* *_*.debian.tar.* *.dsc
 
 # Cross-build environment
 CROSSBUILDPKGLIST = dpkg-cross crossbuild-essential-$(TARGET)
@@ -613,7 +613,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 ## "`.git* .svn*`".
 sync-in: $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
-	rsync -aI --inplace --delete $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(abspath $(FROM))/ $(BUILDROOT)$(INDIR)/$(SOURCEDIR)
+	rsync -aI --inplace --delete --delete-excluded $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(abspath $(FROM))/ $(BUILDROOT)$(INDIR)/$(SOURCEDIR)
 	case "$(COMPOSE)" in \
 	    0|no|NO|false|FALSE) \
 	        ;; \
@@ -661,8 +661,12 @@ sync-out: $(BUILDROOT)/.configured
 ## * `copy-results` Copy all build result files (packages) to specified directory
 ## `TO=<path>` destination  directory path.
 ##
-copy-results: $(BUILDROOT)/.buildok
+copy-results:
 	$(if $(filter sync-out,$(MAKECMDGOALS)),$(if $(TO),,$(error Specify the destination directory to copy into with 'TO=')))	
+	@if [ ! -f $(BUILDROOT)/.buildok ]; then \
+	  echo "$(INFOPFX) No build results present. Please build it first"; \
+	  exit 1; \
+	fi  
 	@echo "$(INFOPFX) Copy result files to $(abspath $(TO)) from the builder dir $(BUILDROOT)$(BUILDER_HOME)"
 	find "$(BUILDROOT)$(BUILDER_HOME)" \
 	 -maxdepth 1 -mindepth 1 -type f -not -name '.*' \
@@ -822,7 +826,7 @@ define add_processing_deps_fields
 	@echo '  process_deps_field "$(1)" "$${f}" "$${MULTIARCH}" || ret=$$?' >>$(4)
 	@echo 'done ' >>$(4)
 	@echo '[ $${ret} -eq 0 ] || exit ${ret}' >>$(4)
-	@echo 'echo $(INFOPFX) build deps fields succesfuly corrected' >>$(4) 
+	@echo 'echo $(INFOPFX) All build deps fields succesfuly corrected' >>$(4) 
 	@echo '' >>$(4) 
 	@echo '# --- ' >>$(4)
 endef 
@@ -927,16 +931,17 @@ cleanpkg: $(BUILDROOT)/.configured
 	@echo '[ $$(find .keep/ -maxdepth 1 -name "*.orig.tar.*" | wc -l) -eq 0 ] || mv .keep/*.orig.tar.* ./' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
-	@echo '$(INFOPFX) Searching for previous *.build-deps package...'
+	@echo '$(INFOPFX) Searching for previous *.build-deps packages...'
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'PKGS=$$(dpkg -l | grep build-deps | awk '\'{ print $$\2 }\'')' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -n "$${PKGS}"  ]; then' >>$(BUILDROOT)/.host/entry
-	@echo '  echo Deleting: "$${PKGS}"' >>$(BUILDROOT)/.host/entry
+	@echo '  echo $(INFOPFX) Deleting: "$${PKGS}"' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "$${PKGS}" | xargs dpkg -P' >>$(BUILDROOT)/.host/entry
+	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$(CLEANDEP)" ]; then \
+	  echo '  echo $(INFOPFX) Deleting previously installed unused dependencies...' >>$(BUILDROOT)/.host/entry; \
  	  echo '  apt-get -y autoremove ' >>$(BUILDROOT)/.host/entry; \
 	fi
-	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
