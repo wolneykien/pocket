@@ -820,6 +820,10 @@ define add_processing_deps_fields
 	@echo '}'  >>$(4)
 	@echo '' >>$(4) 
 	@echo '' >>$(4) 
+	@echo 'if [ ! -f "$(1)" ]; then' >>$(4) 
+	@echo '  echo  $(INFOPFX) file \"$(1)\" not exist!!!' >>$(4) 
+	@echo '  exit 1' >>$(4) 
+	@echo 'fi' >>$(4) 
 	@echo 'fields="Build-Depends Build-Depends-Indep Build-Depends-Arch Build-Conflicts Build-Conflicts-Indep Build-Conflicts-Arch"' >>$(4)
 	@echo 'ret=0' >>$(4)
 	@echo 'for f in $${fields}; do ' >>$(4)
@@ -970,6 +974,10 @@ cleanpkg: $(BUILDROOT)/.configured
 ##     The `CPUCNT=<number>` parameter can be used to instruct
 ## the `dpkg-buildpackage` tool to limit usage of system cpu cores
 ##
+##     The `PKGTYPE=<all/any/bin/src>` parameter can be used to instruct
+## the `dpkg-buildpackage` tool to build only specified types of packages
+## as default All types of packages processed
+##
 buildpkg: | cleanpkg install-builddeps 
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@rm -f $(BUILDROOT)/.buildok
@@ -980,7 +988,7 @@ buildpkg: | cleanpkg install-builddeps
 	@echo '    export CONFIG_SITE=/etc/dpkg-cross/cross-config.$(TARGET)' >>$(BUILDROOT)/.host/entry
 	@echo '    export DEB_BUILD_OPTIONS=nocheck' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
-	@echo 'BUILDOPTS="-F -us -uc"' >>$(BUILDROOT)/.host/entry
+	@echo 'BUILDOPTS="-us -uc"' >>$(BUILDROOT)/.host/entry
 	@if [ "x$(NOCLEAN)" != "x"  ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -nc"' >>$(BUILDROOT)/.host/entry; \
 	fi  
@@ -991,6 +999,13 @@ buildpkg: | cleanpkg install-builddeps
 	@if [ "x$(CPUCNT)" != "x" ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -j$(CPUCNT)"' >>$(BUILDROOT)/.host/entry; \
 	fi
+	@case "$(PKGTYPE)" in \
+	  all) echo 'BUILDOPTS="$${BUILDOPTS} -A"' >>$(BUILDROOT)/.host/entry ;;\
+	  any) echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
+	  bin) echo 'BUILDOPTS="$${BUILDOPTS} -b"' >>$(BUILDROOT)/.host/entry ;;\
+	  src) echo 'BUILDOPTS="$${BUILDOPTS} -S"' >>$(BUILDROOT)/.host/entry ;;\
+	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F' >>$(BUILDROOT)/.host/entry ;;\
+	esac
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
@@ -1036,6 +1051,13 @@ rebuildpkg: | getsource cleanpkg install-builddeps
 	@if [ "x$(CPUCNT)" != "x" ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -j$(CPUCNT)"' >>$(BUILDROOT)/.host/entry; \
 	fi
+	@case "$(PKGTYPE)" in \
+	  all) echo 'BUILDOPTS="$${BUILDOPTS} -A"' >>$(BUILDROOT)/.host/entry ;;\
+	  any) echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
+	  bin) echo 'BUILDOPTS="$${BUILDOPTS} -b"' >>$(BUILDROOT)/.host/entry ;;\
+	  src) echo 'BUILDOPTS="$${BUILDOPTS} -S"' >>$(BUILDROOT)/.host/entry ;;\
+	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F' >>$(BUILDROOT)/.host/entry ;;\
+	esac
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
@@ -1069,10 +1091,11 @@ getsource: $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated
 filecheck: $(BUILDROOT)/.buildok
 	@echo "$(INFOPFX) Compare the installed and packaged set of files..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
-	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
-	@echo 'if [ ! -d $(SOURCEDIR)/debian/tmp ]; then' >>$(BUILDROOT)/.host/entry
-	@echo '  cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
-	@echo '  cd debian/$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')' >>$(BUILDROOT)/.host/entry
+	@echo 'cd $(BUILDER_HOME)/$(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'if [ ! -d debian/tmp ]; then' >>$(BUILDROOT)/.host/entry
+	@echo '  INSTDIR="debian/$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')"' >>$(BUILDROOT)/.host/entry 
+	@echo '  [ ! -d "$${INSTDIR}" ] && exit 0'>>$(BUILDROOT)/.host/entry
+	@echo '  cd "$${INSTDIR}" '>>$(BUILDROOT)/.host/entry
 	@echo 'else' >>$(BUILDROOT)/.host/entry
 	@echo '  cd $(SOURCEDIR)/debian/tmp' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry

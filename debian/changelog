@@ -12,6 +12,8 @@ pocket (0.2.13-14) experimental; urgency=low
   *  Fix: sync-in action now not ignore deletion of excluded files
   *  Improve: sync-in action as default ignore *.dsc *.changes and other debian resulting files
               to stop backward sync of result to source dir
+  *  Improve: Added ability to build only specified type of packages all,any,bin,src
+              
 
  -- Alexander Buev <san@zzz.spb.ru>  Mon, 04 Sep 2017 19:16:56 +0400
 

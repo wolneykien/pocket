@@ -14,6 +14,7 @@
 	 *  Fix: sync-in action now not ignore deletion of excluded files
 	 *  Improve: sync-in action as default ignore *.dsc *.changes and other debian resulting files
 	             to stop backward sync of result to source dir
+	 *  Improve: Added ability to build only specified type of packages all,any,bin,src
 	  
 
 2017-08-28 Alexander Buev <san@zzz.spb.ru> 
