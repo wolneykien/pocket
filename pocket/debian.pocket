@@ -1004,7 +1004,7 @@ buildpkg: | cleanpkg install-builddeps
 	  any) echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
 	  bin) echo 'BUILDOPTS="$${BUILDOPTS} -b"' >>$(BUILDROOT)/.host/entry ;;\
 	  src) echo 'BUILDOPTS="$${BUILDOPTS} -S"' >>$(BUILDROOT)/.host/entry ;;\
-	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F' >>$(BUILDROOT)/.host/entry ;;\
+	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F"' >>$(BUILDROOT)/.host/entry ;;\
 	esac
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
@@ -1056,7 +1056,7 @@ rebuildpkg: | getsource cleanpkg install-builddeps
 	  any) echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
 	  bin) echo 'BUILDOPTS="$${BUILDOPTS} -b"' >>$(BUILDROOT)/.host/entry ;;\
 	  src) echo 'BUILDOPTS="$${BUILDOPTS} -S"' >>$(BUILDROOT)/.host/entry ;;\
-	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F' >>$(BUILDROOT)/.host/entry ;;\
+	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F"' >>$(BUILDROOT)/.host/entry ;;\
 	esac
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
