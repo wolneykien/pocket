@@ -120,10 +120,13 @@ REPO = $(firstword $(subst :,$(space),$(firstword $(COMPONENTS))))
 DISTRO = $(if $(filter $(REPO):%,$(COMPONENTS)),$(firstword $(subst /,$(space),$(patsubst $(REPO):%,%,$(firstword $(filter $(REPO):%,$(COMPONENTS)))))),$($(REPO)_DISTRO))
 USER_DISTCOMPS = $(patsubst $(REPO):$(DISTRO)/%,%,$(filter $(REPO):$(DISTRO)/%,$(COMPONENTS)))
 DISTCOMPS = $(if $(USER_DISTCOMPS),$(USER_DISTCOMPS),$(if $($(REPO)_COMPONENTS),$($(REPO)_COMPONENTS)))
+USER_DISTUDEBCOMPS = 
+DISTUDEBCOMPS = $(if $(USER_DISTUDEBCOMPS),$(USER_DISTUDEBCOMPS),$(if $($(REPO)_UDEBCOMPONENTS),$($(REPO)_UDEBCOMPONENTS)))
 SYSPKGLIST += $(if $($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_INITIAL_PACKAGES))
 NOSYSPKGLIST += $(if $($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_EXCLUDE_PACKAGES))
 BUILDPKGLIST += $(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES))
 TESTPKGLIST += $(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES))
+DISTARCHES = amd64 arm64 armel armhf i386 mips mipsel powerpc ppc64el s390x 	
 
 OVERLAYS = $(sort $(filter-out $(REPO),$(filter-out $(REPO):$(DISTRO),$(filter-out $(REPO):$(DISTRO)/%, $(COMPONENTS)))))
 
@@ -464,10 +467,11 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	     echo "No components in $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)" >&2; \
 	     exit 1; \
 	   fi; \
-	   for a in $$(sed -n -e '/^Architectures:/ { s/^[^[:space:]]\+[[:space:]]*//p; q }' $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)/Release); do \
-	       echo "echo \"deb [arch=$$a] file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
-               echo "dpkg --add-architecture $$a" >>$(BUILDROOT)/.host/entry; \
-	   done; \
+#	   for a in $$(sed -n -e '/^Architectures:/ { s/^[^[:space:]]\+[[:space:]]*//p; q }' $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)/Release); do \
+#	       echo "echo \"deb [arch=$$a] file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+#              echo "dpkg --add-architecture $$a" >>$(BUILDROOT)/.hos/entry; \
+#	   done; \
+	   echo "echo \"deb file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	   echo "echo \"deb-src file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	fi
 	@if [ -n "$$http_proxy" ]; then \
@@ -978,7 +982,9 @@ cleanpkg: $(BUILDROOT)/.configured
 ## the `dpkg-buildpackage` tool to build only specified types of packages
 ## as default All types of packages processed
 ##
+.ONESHELL:
 buildpkg: | cleanpkg install-builddeps 
+	# This comment needed because of target marked as .ONESHELL 
 	@echo "$(INFOPFX) Building the package from source (no clean)..."
 	@rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
@@ -1009,6 +1015,7 @@ buildpkg: | cleanpkg install-builddeps
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(if $(SHARE_NETWORK),share_network=$(SHARE_NETWORK)) $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
+	@if [ $$? -ne 0 ]; then exit 1; fi
 	@touch $(BUILDROOT)/.buildok
 	@$(MAKE) -si -f $(firstword $(MAKEFILE_LIST)) filecheck ARCH=$(ARCH) BUILDROOT=$(BUILDROOT)
 
@@ -1030,6 +1037,9 @@ buildpkg: | cleanpkg install-builddeps
 ## at pocket initialization (use `show-config` without parameters to
 ## get it).
 ##
+##     The `NOCLEAN=<anything>` parameter can be used to instruct
+## the `dpkg-buildpackage` tool to skip process of clean it's build directory
+##
 ##     The `CPUCNT=<number>` parameter can be used to instruct
 ## the `dpkg-buildpackage` tool to limit usage of system cpu cores
 ##
@@ -1037,7 +1047,9 @@ buildpkg: | cleanpkg install-builddeps
 ## the `dpkg-buildpackage` tool to build only specified types of packages
 ## as default All types of packages processed
 ##
+.ONESHELL:
 rebuildpkg: | getsource cleanpkg install-builddeps
+	# This comment needed because of target marked as .ONESHELL 
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
 	@rm -f $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
@@ -1048,6 +1060,9 @@ rebuildpkg: | getsource cleanpkg install-builddeps
 	@echo '    export DEB_BUILD_OPTIONS=nocheck' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'BUILDOPTS="-us -uc"' >>$(BUILDROOT)/.host/entry
+	@if [ "x$(NOCLEAN)" != "x"  ]; then \
+	  echo 'BUILDOPTS="$${BUILDOPTS} -nc"' >>$(BUILDROOT)/.host/entry; \
+	fi  
 	@if [ -n "$(TARGET)" ]; then \	  
 	  echo 'BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
 	  echo 'export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
@@ -1065,6 +1080,7 @@ rebuildpkg: | getsource cleanpkg install-builddeps
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
+	@if [ $$? -ne 0 ]; then exit 1; fi
 	@touch $(BUILDROOT)/.buildok
 	@$(MAKE) -si -f $(firstword $(MAKEFILE_LIST)) filecheck ARCH=$(ARCH) BUILDROOT=$(BUILDROOT)
 
@@ -1139,9 +1155,20 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	   echo 'cp -a $(INREPODIR)/* $(OUTREPODIR)/' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo 'mkdir -p $(OUTREPODIR)/conf' >>$(BUILDROOT)/.host/entry
+	@echo '# Populate archs = current pkg archs + distro oficial arches' >>$(BUILDROOT)/.host/entry
 	@echo "archs=\"\$$( ( cat *.changes; if [ -e $(OUTREPODIR)/conf/distributions ]; then cat $(OUTREPODIR)/conf/distributions; fi ) | sed -n -e '/^Architectures*:/ { s/^[^[:space:]]\\+[[:space:]]*//; s/[[:space:]]/\\n/g; p }' | sed -e '/^[[:space:]]*\$$/ d' -e \"s/^all\\\$$/\$$(dpkg --print-architecture)/g\" | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
+	@echo archs=\"'$${archs} $(DISTARCHES)'\" >> $(BUILDROOT)/.host/entry
+	@echo archs=\"'$$(echo $${archs} | tr '\'' '\'' '\''\n'\'' | sort -u | tr '\''\n'\'' '\'' '\'')'\" >> $(BUILDROOT)/.host/entry
+	@echo '# Populate components = current pkg components + additional repos components + distro main components' >>$(BUILDROOT)/.host/entry
 	@echo "comps=\"\$$( ( cat *.changes | sed -n -e '/^Files:/,\$$ { s/^[[:space:]]\\+[0-9a-f]\\+[[:space:]]\\+[0-9]\\+[[:space:]]\\+\\([^[:space:]]\\+\\)\\(\\/[^[:space:]]\\+\\)\\?[[:space:]].*\$$/\\1/p }'; if [ -e $(OUTREPODIR)/conf/distributions ]; then sed -n -e '/^Components:/ { s/^Components:[[:space:]]*//; s/[[:space:]]\\+/\\n/g; p; q }' $(OUTREPODIR)/conf/distributions; fi ) | sed -e '/^[[:space:]]*\$$/ d' | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
+	@$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(subst -,_,$(ovl))_DISTRO)),$(shell echo 'comps='\"'$${comps} $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_COMPONENTS)))'\"; >> $(BUILDROOT)/.host/entry )))
+	@echo comps=\"'$${comps} $(DISTCOMPS)'\" >> $(BUILDROOT)/.host/entry
+	@echo comps=\"'$$(echo $${comps} | tr '\'' '\'' '\''\n'\'' | sort -u | tr '\''\n'\'' '\'' '\'')'\" >> $(BUILDROOT)/.host/entry
+	@echo '# Populate ucomponents = current pkg components + additional repos components + distro main components' >>$(BUILDROOT)/.host/entry
 	@echo "ucomps=\"\$$( ( cat *.changes | sed -n -e '/^Files:/,\$$ { /[[:space:]]debian-installer[[:space:]]/! d; s/^[[:space:]]\\+[0-9a-f]\\+[[:space:]]\\+[0-9]\\+[[:space:]]\\+\\([^[:space:]]\\+\\)\\(\\/[^[:space:]]\\+\\)\\?[[:space:]].*\$$/\\1/p }'; if [ -e $(OUTREPODIR)/conf/distributions ]; then sed -n -e '/^UDebComponents:/ { s/^UDebComponents:[[:space:]]*//; s/[[:space:]]\\+/\\n/g; p; q }' $(OUTREPODIR)/conf/distributions; fi ) | sed -e '/^[[:space:]]*\$$/ d' | sort -u | sed -n -e 'H' -e '\$$ { g; s/\\n/ /g; s/^[[:space:]]\\+//; p }')\"" >>$(BUILDROOT)/.host/entry
+	@$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(subst -,_,$(ovl))_DISTRO)),$(shell echo 'ucomps='\"'$${ucomps} $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_UDEBCOMPONENTS),$($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_UDEBCOMPONENTS),$($(subst -,_,$(ovl))_UDEBCOMPONENTS)))'\"; >> $(BUILDROOT)/.host/entry )))
+	@echo ucomps=\"'$${ucomps} $(DISTUDEBCOMPS)'\" >> $(BUILDROOT)/.host/entry
+	@echo ucomps=\"'$$(echo $${ucomps} | tr '\'' '\'' '\''\n'\'' | sort -u | tr '\''\n'\'' '\'' '\'')'\" >> $(BUILDROOT)/.host/entry
 	@echo "oldarchs=\"\$$([ ! -e $(OUTREPODIR)/conf/distributions ] || sed -n -e \"/^Architectures:/ { s/^Architectures:[[:space:]]*//; s/[[:space:]]*\$$//; p; q }\" $(OUTREPODIR)/conf/distributions)\"" >>$(BUILDROOT)/.host/entry
 	@echo 'cat <<EOF >$(OUTREPODIR)/conf/distributions' >>$(BUILDROOT)/.host/entry
 	@echo 'Origin: pocket' >>$(BUILDROOT)/.host/entry

@@ -403,6 +403,13 @@ else
             ;;
         init)
             "$PROG_PATH/pocket-init" "$POCKETDIR" "$@"
+
+	    # create user specified symlink
+            if [ -n "${POCKETDIRSYMLINK}" ]; then
+               if [ ! "${POCKETDIR}" = "${POCKETDIRSYMLINK}" ]; then
+                  [ -e "${POCKETDIRSYMLINK}" ] ||  ln -sfT "${POCKETDIR}" "${POCKETDIRSYMLINK}"   
+               fi 
+            fi	
             ;;
         *)
             invoke "$action" "$@"

@@ -15,6 +15,18 @@
 	 *  Improve: sync-in action as default ignore *.dsc *.changes and other debian resulting files
 	             to stop backward sync of result to source dir
 	 *  Improve: Added ability to build only specified type of packages all,any,bin,src
+	 *  Fix: internal repository components list now builded as union of:
+	          a) current package components extracted from *.changes
+	          b) all components from all enabled during build repositories
+	 *  Fix: internal repository arches list now builded as union of:
+	          a) current package arch extracted from *.changes
+	          b) all oficial debian arches                        
+	 *  Fix: error handling impoved in some places
+	 *  Improve: added NOCLEAN parameter for rebuildpkg target
+	 *  Fix: no 'dpkg --add-arch' called during update of packages of base 
+	         chroot system. (Erly all availble internal repo arches added to system at this point) 
+	 *  Improve: added ability to create user specified symlink to pocket dir POCKETDIRSYMLINK variable
+	             in config file
 	  
 
 2017-08-28 Alexander Buev <san@zzz.spb.ru> 
