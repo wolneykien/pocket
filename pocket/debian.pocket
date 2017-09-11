@@ -58,7 +58,7 @@ VARIANT = minbase
 BBOXPKG = busybox-static
 
 # Additional packages in the base system:
-SYSPKGLIST = fakeroot $(BBOXPKG) rsync
+SYSPKGLIST = fakeroot $(BBOXPKG) rsync awk
 NOSYSPKGLIST =
 
 # Build system packages:
@@ -1032,6 +1032,10 @@ buildpkg: | cleanpkg install-builddeps
 ##
 ##     The `CPUCNT=<number>` parameter can be used to instruct
 ## the `dpkg-buildpackage` tool to limit usage of system cpu cores
+##
+##     The `PKGTYPE=<all/any/bin/src>` parameter can be used to instruct
+## the `dpkg-buildpackage` tool to build only specified types of packages
+## as default All types of packages processed
 ##
 rebuildpkg: | getsource cleanpkg install-builddeps
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
