@@ -27,7 +27,9 @@
 	         chroot system. (Erly all availble internal repo arches added to system at this point) 
 	 *  Improve: added ability to create user specified symlink to pocket dir POCKETDIRSYMLINK variable
 	             in config file
-	  
+	 *  Improve: added ability to mount host system direcrories to build system chroot
+	             a) POCKETMNTPOINTS variable in pocket.conf
+	             b) -m command line option 	  
 
 2017-08-28 Alexander Buev <san@zzz.spb.ru> 
 

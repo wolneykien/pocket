@@ -112,6 +112,9 @@ FAKEROOT = /usr/bin/fakeroot-sysv $(if $(wildcard $(BUILDROOT)/.fakedata),-i /.f
 SHELL = /bin/bash
 USERSHELL = /bin/bash
 
+ifneq ($(MNTPOINTS),)
+  export mountpoints := $(MNTPOINTS)
+endif
 
 # Repository and distro configuration
 # -----------------------------------

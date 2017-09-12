@@ -59,6 +59,10 @@ Options:
   -N, --network    supply the \`SHARE_NETWORK=yes\` Pocketfile
                    parameter;
 
+  -m, --mount      comma separated list of host system directories
+                   that need to be mounted to build system
+                   (this option overide POCKETMNTPOINTS configuration variable);
+
   -r NAME, --repo=NAME        override the repository name;
 
   -q, --quiet    suppress output;
@@ -145,7 +149,7 @@ quote()
 myargs=
 while [ $# -gt 0 ]; do
     case "$1" in
-        -C|--dir|-a|--arch|-t|--target|-r|--repo|-j|-jobs)
+        -C|--dir|-a|--arch|-t|--target|-r|--repo|-j|-jobs|-m|-mount)
             if [ $# -le 1 ]; then
                 show_usage
                 exit 1
@@ -163,9 +167,9 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,r:,j:,N,q,w,d,n,h,V -l dir:,arch:,target:,repo:,jobs:,network,quiet,print-dirs,debug,deep-debug,dry-run,help,version -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
+OPTS=`eval "getopt -n \"$PROG\" -o C:,a:,t:,r:,j:,N,q,w,d,n,h,V,m: -l dir:,arch:,target:,repo:,jobs:,network,quiet,print-dirs,debug,deep-debug,dry-run,help,version,mount: -- $myargs"` || ( ret=$?; show_usage; exit $ret ) >&2
 
-dir=; quiet=; printdirs=; debug=; dry=; arch=; target=; network=; reponame=; cpucnt=
+dir=; quiet=; printdirs=; debug=; dry=; arch=; target=; network=; reponame=; cpucnt= ; mntpoints=${POCKETMNTPOINTS:-""} 
 
 argparse() {
     while :; do
@@ -177,6 +181,7 @@ argparse() {
             -a|--arch) shift; arch="$1";;
             -t|--target) shift; target="$1";;
             -r|--repo) shift; reponame="$1";;
+            -m|--mount) shift; mntpoints="$1";;
             -N|--network) network=-n;;
             -q|--quiet) quiet=-q;;
             -w|--print-dirs) printdirs=-w;;
@@ -222,7 +227,8 @@ do_invoke()
              ${target:+TARGET="$target"} \
              ${network:+SHARE_NETWORK=yes} \
              ${reponame:+OUTNAME="$reponame"} \
-             ${cpucnt:+CPUCNT="$cpucnt"}
+             ${cpucnt:+CPUCNT="$cpucnt"} \
+             ${mntpoints:+MNTPOINTS="${mntpoints}"}
 }
 
 invoke()
@@ -405,10 +411,13 @@ else
             "$PROG_PATH/pocket-init" "$POCKETDIR" "$@"
 
 	    # create user specified symlink
+            POCKETDIRSYMLINK=${POCKETDIRSYMLINK:-""}
             if [ -n "${POCKETDIRSYMLINK}" ]; then
-               if [ ! "${POCKETDIR}" = "${POCKETDIRSYMLINK}" ]; then
-                  [ -e "${POCKETDIRSYMLINK}" ] ||  ln -sfT "${POCKETDIR}" "${POCKETDIRSYMLINK}"   
-               fi 
+              if [ ! "${POCKETDIR}" = "${POCKETDIRSYMLINK}" ]; then
+                if [ -h "${POCKETDIRSYMLINK}" -o ! -e "${POCKETDIRSYMLINK}" ]; then
+                  ln -sfT "${POCKETDIR}" "${POCKETDIRSYMLINK}"
+                fi
+              fi 
             fi	
             ;;
         *)
