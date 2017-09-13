@@ -294,7 +294,7 @@ extract: $(DEBPATHS)
 
 $(DEBPATHS): $(BUILDROOTTAR) $(BUILDROOT)/.stamp
 	@echo "$(INFOPFX) Generating the list of the base packages..."
-	tar xpf $(BUILDROOTTAR) -C $(BUILDROOT)/.host
+	tar xpf $(BUILDROOTTAR) -C $(BUILDROOT)/.host --overwrite
 	if [ -n "$(strip $(NOSYSPKGLIST))" ]; then \
 	    echo "$(strip $(NOSYSPKGLIST))" | \
 	        sed -e 's/[ \t]\+/\n/g' | \
@@ -348,40 +348,47 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 ##
 ## * `clean`    Clean the buildroot making it necessary to
 ## `bootstrap` again.
-clean: clean-builder
-	@if [ -d $(BUILDROOT)$(OUTREPODIR) ]; then \
-	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) bootstrap; \
-	  echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"; \
-	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
-	  echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry; \
-	  echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry; \
-	  echo 'echo "Removed \"$(OUTREPODIR)\"" >&2' >>$(BUILDROOT)/.host/entry; \
-	  chmod 0755 $(BUILDROOT)/.host/entry; \
-	  $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
+.ONESHELL:
+clean: 
+	@echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"
+	@if [ ! -d "$(BUILDROOT)"  ]; then exit 0; fi 
+	@if [ -n "$$(ls -A $(BUILDROOT))"  ]; then \
+	  echo 'echo $(INFOPFX) Creating devices and shell if needed...'; \
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) $(BUILDROOT)/dev/.stamp; \
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) $(BUILDROOT)$(BUSYBOX); \
+	  if [ $$? -ne 0 ]; then exit 1; fi; \
+	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.cleanall; \
+	  echo 'set +e$(SHOPTS)' >>$(BUILDROOT)/.cleanall; \
+	  echo 'echo "$(INFOPFX) Deleting build related files..."' >>$(BUILDROOT)/.cleanall; \
+	  if [ -d '"$(BUILDROOT)$(BUILDER_HOME)"' ]; then \ 
+	    echo 'for f in $(BUILDER_HOME)/*; do rm -rf "$$f" 2> /dev/null; done' >>$(BUILDROOT)/.cleanall; \
+	    echo 'for f in $(BUILDER_HOME)/.*; do rm -rf "$$f" 2> /dev/null; done' >>$(BUILDROOT)/.cleanall; \
+	  fi; \
+	  if [ -d '"$(BUILDROOT)$(OUTREPODIR)"' ]; then \
+	    echo 'for f in $(OUTREPODIR)/*; do rm -rf "$$f" 2> /dev/null; done' >>$(BUILDROOT)/.cleanall; \
+	    echo 'for f in $(OUTREPODIR)/.*; do rm -rf "$$f" 2> /dev/null; done' >>$(buildroot)/.cleanall; \
+	  fi; \
+	  echo 'exit 0' >>$(BUILDROOT)/.cleanall; \
+	  chmod 0755 $(BUILDROOT)/.cleanall; \
+	  $(RUN_B) $(abspath $(BUILDROOT)) /.cleanall; \
+	  if [ $$? -ne 0 ]; then exit 1; fi; \
+	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.cleanall; \
+	  echo 'set +e$(SHOPTS)' >>$(BUILDROOT)/.cleanall; \
+	  echo 'echo "$(INFOPFX) Deleting system files..."' >>$(BUILDROOT)/.cleanall; \
+	  echo 'for f in /*; do rm -rf "$$f" 2> /dev/null; done' >>$(BUILDROOT)/.cleanall; \
+	  echo 'for f in /.*; do rm -rf "$$f" 2> /dev/null; done' >>$(BUILDROOT)/.cleanall; \
+	  echo 'exit 0' >>$(BUILDROOT)/.cleanall; \
+	  chmod 0755 $(BUILDROOT)/.cleanall; \
+	  $(RUN_A) $(abspath $(BUILDROOT)) /.cleanall; \
+	  if [ $$? -ne 0 ]; then exit 1; fi; \
 	fi
-	@if [ -n '$(wildcard $(BUILDROOT)/*)'  ]; then \
-	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) bootstrap; \
-	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
-	  echo 'set -e$(SHOPTS)' >>$(BUILDROOT)/.host/entry; \
-	  echo 'for f in /*; do' >>$(BUILDROOT)/.host/entry; \
-	  echo '  [ -O "$$f" ] || continue' >>$(BUILDROOT)/.host/entry; \
-	  echo '  rm -rf "$$f"' >>$(BUILDROOT)/.host/entry; \
-	  echo '  echo "Removed \"$$f\"" >&2' >>$(BUILDROOT)/.host/entry; \
-	  echo 'done' >>$(BUILDROOT)/.host/entry; \
-	  chmod 0755 $(BUILDROOT)/.host/entry; \
-	  $(RUN_A) $(abspath $(BUILDROOT)) /.host/entry; \
-	fi
-	rm -fv $(BUILDROOT)/.testenv
-	rm -fv $(BUILDROOT)/.installrepodone
-	rm -fv $(BUILDROOT)/.buildenv
-	rm -fv $(BUILDROOT)/.cross
-	rm -fv $(BUILDROOT)/.updated
-	rm -fv $(BUILDROOT)/.configured
-	rm -fv $(BUILDROOT)/.installed
-	rm -fv $(BUILDROOT)/.preconfigured
-	rm -fv $(BUILDROOT)/.preinstalled
-	rm -fv $(BUILDROOT)/.extracted
-	rm -fv $(BUILDROOT)/.fakedata
+	@echo '$(INFOPFX) Deleting whole chroot...'; 
+	@rm -rf '$(BUILDROOT)' 2> /dev/null
+	@if [ -d '"$(BUILDROOT)"'  ]; then \
+	  echo "$(INFOPFX) Cleanup failed - can not delete some files!!!"; \
+	  echo files: \"$$(ls -A $(BUILDROOT))\"; \
+	  exit 1; \
+	fi 
 
 ##
 ## * `clean-builder`    Clean the home directory of the user

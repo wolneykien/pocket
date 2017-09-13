@@ -30,6 +30,8 @@
 	 *  Improve: added ability to mount host system direcrories to build system chroot
 	             a) POCKETMNTPOINTS variable in pocket.conf
 	             b) -m command line option 	  
+	 *  Improve: completely rewriten 'clean' target to more correct
+	             chroot deletion
 
 2017-08-28 Alexander Buev <san@zzz.spb.ru> 
 

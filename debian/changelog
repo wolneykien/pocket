@@ -28,6 +28,8 @@ pocket (0.2.13-14) experimental; urgency=low
   *  Improve: added ability to mount host system direcrories to build system chroot
               a) POCKETMNTPOINTS variable in pocket.conf
               b) -m command line option 
+  *  Improve: completely rewriten 'clean' target to more correct
+              chroot deletion
 
  -- Alexander Buev <san@zzz.spb.ru>  Mon, 04 Sep 2017 19:16:56 +0400
 
