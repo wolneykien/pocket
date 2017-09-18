@@ -1,3 +1,38 @@
+pocket (0.2.13-14) experimental; urgency=low
+
+  *  Improve: Added more strong BuildDepends field parser
+  *  Improve: Added support for '|' symbol for BuildDepends fields 'Or' operation
+  *  Improve: Added support for Multi-Arch field of control file
+  *  Improve: Added support for fields: 
+              BuildDepends-Indep, BuildDepends-Arch, 
+              BuildConflicts, BuildConflicts-Indep, BuildConflics-Arch.
+  *  Improve: Added ability to install build dependencies with real 'all' arch
+              but with no arch specified in control file.   
+              (Now we ask apt-cache to detect real depedency arch)
+  *  Fix: sync-in action now not ignore deletion of excluded files
+  *  Improve: sync-in action as default ignore *.dsc *.changes and other debian resulting files
+              to stop backward sync of result to source dir
+  *  Improve: Added ability to build only specified type of packages all,any,bin,src
+  *  Fix: internal repository components list now builded as union of:
+          a) current package components extracted from *.changes
+          b) all components from all enabled during build repositories
+  *  Fix: internal repository arches list now builded as union of:
+          a) current package arch extracted from *.changes
+          b) all oficial debian arches                        
+  *  Fix: error handling impoved in some places
+  *  Improve: added NOCLEAN parameter for rebuildpkg target
+  *  Fix: no 'dpkg --add-arch' called during update of packages of base 
+          chroot system. (Erly all availble internal repo arches added to system at this point) 
+  *  Improve: added ability to create user specified symlink to pocket dir POCKETDIRSYMLINK variable
+              in config file
+  *  Improve: added ability to mount host system direcrories to build system chroot
+              a) POCKETMNTPOINTS variable in pocket.conf
+              b) -m command line option 
+  *  Improve: completely rewriten 'clean' target to more correct
+              chroot deletion
+
+ -- Alexander Buev <san@zzz.spb.ru>  Mon, 04 Sep 2017 19:16:56 +0400
+
 pocket (0.2.13-13) experimental; urgency=low
 
   *  Fix: Searching for debian/control field 'Build-Depends' now are case insensivitive
