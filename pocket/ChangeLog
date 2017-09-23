@@ -1,3 +1,13 @@
+2017/09/22 Alexander Buev <san@zzz.spb.ru> 
+
+	* debian.pocket (0.2.13.15)
+
+	 * Fix: 'clean' target not stopped in case of nothing to delete
+	 * Fix: 'install-builddeps' target syntax (not worked on some systems)		
+	 * Fix: 'dev/.stamp' target not stopped in case of already have /dev/pts dir 		
+	 * Improve: added Archlinux package build files
+	 * Fix: corrected internal pocket version constant according to changelogs
+
 2017-09-04 Alexander Buev <san@zzz.spb.ru> 
 
 	* debian.pocket (0.2.13.14)
