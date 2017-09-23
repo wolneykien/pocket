@@ -46,7 +46,7 @@ HSHPRIVDIR = /usr/lib/hasher-priv
 RESOLVCONF = /etc/resolv.conf
 
 # debootstrap program:
-DEBOOTSTRAP = /usr/sbin/debootstrap
+DEBOOTSTRAP = debootstrap
 
 # What to use for `dpkg -x`:
 DPKGX = dpkg -x
@@ -1067,7 +1067,7 @@ buildpkg: | cleanpkg install-builddeps
 ## as default All types of packages processed
 ##
 .ONESHELL:
-rebuildpkg: | getsource cleanpkg install-builddeps
+rebuildpkg: | cleanpkg getsource install-builddeps
 	# This comment needed because of target marked as .ONESHELL 
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
 	@rm -f $(BUILDROOT)/.buildok
@@ -1096,7 +1096,7 @@ rebuildpkg: | getsource cleanpkg install-builddeps
 	  src) echo 'BUILDOPTS="$${BUILDOPTS} -S"' >>$(BUILDROOT)/.host/entry ;;\
 	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F"' >>$(BUILDROOT)/.host/entry ;;\
 	esac
-	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUNENV_NET) $(RUNENV_MNT) $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	@if [ $$? -ne 0 ]; then exit 1; fi
@@ -1116,6 +1116,7 @@ getsource: $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated
 	@echo 'rm -fv *.deb *.dsc *.changes *.tar.*' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
 	@echo 'apt-get -y --allow-unauthenticated source $(PKG)' >>$(BUILDROOT)/.host/entry
+	@echo 'find -maxdepth 1 -type l | while read f; do t="$$(readlink "$$f")"; rm "$$f"; cp "$$t" "$$f"; done' >>$(BUILDROOT)/.host/entry
 	@echo "find -maxdepth 1 -type d -name '$(firstword $(subst =, ,$(subst :, ,$(PKG))))-*' -exec mv -vf '{}' $(SOURCEDIR) \\;" >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
