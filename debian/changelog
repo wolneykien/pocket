@@ -1,3 +1,18 @@
+pocket (0.2.13-16) experimental; urgency=low
+
+   * Fix: 'rebuild' target:
+          a) trailing space removed to satisfy bash
+          b) no substitute additional -B/-b parameters to dpkg-buildpackage
+          c) call 'clearpkg' before 'getsource'
+   * Fix: 'repo' target -  do not delete all builded packages of "any"
+          architecture from repo in case of source package builded.
+   * Fix: 'filecheck' target - wrong directory path specified
+   * Fix: describe internal repo URL as copy:// instead of file://
+          to prevent apt-get create symlinks. Symlinks not possible because
+          of differnt permission of files.         
+
+ -- Alexander Buev <san@zzz.spb.ru>  Thu, 28 Sep 2017 15:43:18 +0300
+
 pocket (0.2.13-15) experimental; urgency=low
 
    * Fix: 'clean' target not stopped in case of nothing to delete

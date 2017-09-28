@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.13.15
+POCKET_VERSION = 0.2.13.16
 
 
 # Customization section
@@ -478,8 +478,8 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	     echo "No components in $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)" >&2; \
 	     exit 1; \
 	   fi; \
-	   echo "echo \"deb file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
-	   echo "echo \"deb-src file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   echo "echo \"deb copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   echo "echo \"deb-src copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	fi
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -1069,7 +1069,7 @@ buildpkg: | cleanpkg install-builddeps
 ## as default All types of packages processed
 ##
 .ONESHELL:
-rebuildpkg: | getsource cleanpkg install-builddeps
+rebuildpkg: | cleanpkg getsource install-builddeps
 	# This comment needed because of target marked as .ONESHELL 
 	@echo "$(INFOPFX) Rebuilding binary packages from source..."
 	@rm -f $(BUILDROOT)/.buildok
@@ -1084,7 +1084,7 @@ rebuildpkg: | getsource cleanpkg install-builddeps
 	@if [ "x$(NOCLEAN)" != "x"  ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -nc"' >>$(BUILDROOT)/.host/entry; \
 	fi  
-	@if [ -n "$(TARGET)" ]; then \	  
+	@if [ -n "$(TARGET)" ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
 	  echo 'export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
 	fi
@@ -1098,7 +1098,7 @@ rebuildpkg: | getsource cleanpkg install-builddeps
 	  src) echo 'BUILDOPTS="$${BUILDOPTS} -S"' >>$(BUILDROOT)/.host/entry ;;\
 	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F"' >>$(BUILDROOT)/.host/entry ;;\
 	esac
-	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET) -B,-b) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
+	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUNENV_NET) $(RUNENV_MNT) $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	@if [ $$? -ne 0 ]; then exit 1; fi
@@ -1138,7 +1138,7 @@ filecheck: $(BUILDROOT)/.buildok
 	@echo '  [ ! -d "$${INSTDIR}" ] && exit 0'>>$(BUILDROOT)/.host/entry
 	@echo '  cd "$${INSTDIR}" '>>$(BUILDROOT)/.host/entry
 	@echo 'else' >>$(BUILDROOT)/.host/entry
-	@echo '  cd $(SOURCEDIR)/debian/tmp' >>$(BUILDROOT)/.host/entry
+	@echo '  cd debian/tmp' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'find | sed -e '\''/^\.\/DEBIAN\(\/.*\)\?$$/ d'\'' | sort -u >$(BUILDER_HOME)/.filelist' >>$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -1221,27 +1221,25 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '    esac' >>$(BUILDROOT)/.host/entry
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '  for a in $$archs; do' >>$(BUILDROOT)/.host/entry
-	@echo '    [ -z "$$archfilter" ] || archfilter="$$archfilter | "' >>$(BUILDROOT)/.host/entry
-	@echo '    [ -z "$$delarchs" ] || delarchs="$$delarchs "' >>$(BUILDROOT)/.host/entry
 	@echo '    case "$$a" in' >>$(BUILDROOT)/.host/entry
 	@echo '      all)' >>$(BUILDROOT)/.host/entry
-	@echo '        archfilter="$${archfilter}Architecture (==all)"' >>$(BUILDROOT)/.host/entry
-	@echo '        delarchs="$${delarchs}all"' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter} | \$$Architecture (==all)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs} all"' >>$(BUILDROOT)/.host/entry
 	@echo '        ;;' >>$(BUILDROOT)/.host/entry
 	@echo '      source)' >>$(BUILDROOT)/.host/entry
-	@echo '        archfilter=' >>$(BUILDROOT)/.host/entry
-	@echo '        delarchs="all and any"' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter} | \$$Architecture (==source)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs} source"' >>$(BUILDROOT)/.host/entry
 	@echo '        delsrc=1' >>$(BUILDROOT)/.host/entry
-	@echo '        break' >>$(BUILDROOT)/.host/entry
 	@echo '        ;;' >>$(BUILDROOT)/.host/entry
 	@echo '      *)' >>$(BUILDROOT)/.host/entry
-	@echo '        archfilter="$${archfilter}\$$Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
-	@echo '        delarchs="$${delarchs}$$a"' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter} | \$$Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs} $$a"' >>$(BUILDROOT)/.host/entry
 	@echo '        ;;' >>$(BUILDROOT)/.host/entry
 	@echo '    esac' >>$(BUILDROOT)/.host/entry
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "Remove $$srcname packages from architectures: $$delarchs"' >>$(BUILDROOT)/.host/entry
+	@echo '  if [ -n "$${archfilter}" ]; then  archfilter="( !Source $${archfilter} )"; fi' >>$(BUILDROOT)/.host/entry
 	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname)$${archfilter:+, $$archfilter}"' >>$(BUILDROOT)/.host/entry
 	@echo '  if [ $$delsrc -ne 0 ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    echo "Add $$srcname $$srcver source package to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry
