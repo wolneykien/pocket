@@ -892,7 +892,9 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 	@if [ -n "$(TARGET)" ]; then \
 	  echo ' BUILDOPTS="$${BUILDOPTS} -Pcross -a $(TARGET)"' >>$(BUILDROOT)/.host/entry; \
 	  echo ' export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
-	  echo ' MKBUILDOPTS="$${MKBUILDOPTS} --host-arch $(TARGET)"' >>$(BUILDROOT)/.host/entry; \
+	  echo ' if dpkg --compare-versions "$$(cat /etc/debian_version)" ">=" "9.0" ; then' >>$(BUILDROOT)/.host/entry; \
+	  echo '   MKBUILDOPTS="$${MKBUILDOPTS} --host-arch $(TARGET)"' >>$(BUILDROOT)/.host/entry; \
+	  echo ' fi' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@echo 'rm -f ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo 'if ! dpkg-checkbuilddeps $${BUILDOPTS} ; then' >>$(BUILDROOT)/.host/entry
