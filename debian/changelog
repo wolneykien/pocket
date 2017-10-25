@@ -1,3 +1,13 @@
+pocket (0.2.13-18) experimental; urgency=low
+
+   * Fix:     on jessie mk-build-deps has no --host-arch option
+              used without this option 
+   * improve: added ability to disable package cache update before build.
+              now you can use update=yes/no variable for build & sync-in targets
+              to control this. as default update performed before build [san]
+
+ -- Alexander Buev <san@zzz.spb.ru>  Wed, 25 Oct 2017 11:49:38 +0300
+
 pocket (0.2.13-17) experimental; urgency=low
 
    * Improve: strip long `rm` output during removing

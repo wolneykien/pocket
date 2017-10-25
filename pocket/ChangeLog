@@ -1,3 +1,13 @@
+2017/10/25 Alexander Buev <san@zzz.spb.ru>
+
+	* debian.pocket (0.2.13.18)
+
+		 * fix:     on jessie mk-build-deps has no --host-arch option
+		            used without this option 
+		 * improve: added ability to disable package cache update before build.
+		            now you can use update=yes/no variable for build & sync-in targets
+								to control this. as default update performed before build [san]
+
 2017/10/20 Alexander Buev <san@zzz.spb.ru>
 
 	* debian.pocket (0.2.13.17)
@@ -24,7 +34,7 @@
 	   * Fix: mk-build-deps is very old tool and worked totaly meangfull with -A
 	          Using of this argument disabled now.
 	   * Note: mk-build-deps not supporting Build-*-Arch fields
-	           I thing it must be replaced in the future. [san]        
+	           I thing it must be replaced in the future. [san]
 
 2017/09/28 Alexander Buev <san@zzz.spb.ru>
 

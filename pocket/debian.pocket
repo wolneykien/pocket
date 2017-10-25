@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.13.17
+POCKET_VERSION = 0.2.13.18
 
 
 # Customization section
@@ -454,6 +454,9 @@ clean-cache: rm-updated
 	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)/dists/$(OUTNAME)/Release),$(BUILDREPO)/dists/$(OUTNAME)/Release)
+	@if [ "$(UPDATE)" = "no" ]; then \
+	  touch $@; exit 0;\
+	fi
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	$(if $(DISTCOMPS),,$(error No distribution components are specified))
 	@echo "$(INFOPFX) Updating the package cache..."
@@ -492,6 +495,9 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	touch $@
 
 $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
+	@if [ "$(UPDATE)" = "no" ]; then \
+	  touch $@; exit 0;\
+	fi
 	$(if $(TARGET),,$(error Target architecture is not specified))
 	@echo "$(INFOPFX) Updating the package cache ($(TARGET))..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
