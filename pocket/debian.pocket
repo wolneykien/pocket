@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.13.18
+POCKET_VERSION = 0.2.18.1
 
 
 # Customization section
@@ -62,7 +62,7 @@ SYSPKGLIST = fakeroot $(BBOXPKG) rsync gawk
 NOSYSPKGLIST =
 
 # Build system packages:
-BUILDPKGLIST = build-essential devscripts equivs reprepro
+BUILDPKGLIST = build-essential devscripts equivs reprepro quilt
 
 # Test-root additional packages:
 TESTPKGLIST = man
@@ -454,9 +454,6 @@ clean-cache: rm-updated
 	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)/dists/$(OUTNAME)/Release),$(BUILDREPO)/dists/$(OUTNAME)/Release)
-	@if [ "$(UPDATE)" = "no" ]; then \
-	  touch $@; exit 0;\
-	fi
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	$(if $(DISTCOMPS),,$(error No distribution components are specified))
 	@echo "$(INFOPFX) Updating the package cache..."
@@ -488,11 +485,13 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	 fi
-	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
+	@if [ "$(UPDATE)" != "no" ]; then \
+	  echo 'apt-get update' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	@[ -z "$(CROSS)" ] || touch $(BUILDROOT)/.cross
-	touch $@
+	#touch $@
 
 $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	@if [ "$(UPDATE)" = "no" ]; then \
@@ -529,7 +528,7 @@ $(BUILDROOT)/.upgraded: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET))
 	  chmod 0755 $(BUILDROOT)/.host/entry; \
 	  share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	fi
-	touch $@
+	#touch $@
 
 $(BUILDROOT)/.cross:
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) update CROSS=yes ARCH=$(ARCH) TARGET=$(TARGET) BUILDROOT=$(BUILDROOT)
@@ -670,7 +669,7 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo '    cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
 	@echo '        rm -fv ../*.orig.tar.gz' >>$(BUILDROOT)/.host/entry
-	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''/^Version:/ {s/^Version:[[:space:]]\+//; s/^[0-9]\+://; s/-[^-]*$$//; p}'\'').orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
+	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''/^Version:/ {s/^Version:[[:space:]]\+//; s/^[0-9]\+://; s/-[^-]*$$//; p}'\'').orig.tar.gz --exclude=\./debian/\* .' >>$(BUILDROOT)/.host/entry
 	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry

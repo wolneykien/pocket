@@ -1,12 +1,19 @@
-2017/10/25 Alexander Buev <san@zzz.spb.ru>
+2018/05/23 Alexander Buev <san@zzz.spb.ru>
 
 	* debian.pocket (0.2.13.18)
-
-		 * fix:     on jessie mk-build-deps has no --host-arch option
-		            used without this option 
-		 * improve: added ability to disable package cache update before build.
-		            now you can use update=yes/no variable for build & sync-in targets
-								to control this. as default update performed before build [san]
+	   
+		 * Improve: more correct sync of code (exclude ./debian instead of debian )  
+		 * Fix: UPGRADE=yes worked only once -> now normaly
+		 * Fix: package update not started in case of changes in repositories
+		        records -> now package update started always at begin
+						of build. But you can disable update manualy passing UPDATE=no
+						variable to pocket
+		 * Improve: checks debian version before using mk-build-deps --host-arch
+		            option. Used only on stretch and above.
+		 * Improve: automaticaly unapply all patches during orig.tar.xz creation
+		            (quilt added to build system packages set)  
+	   * Fix: corrected version numeration to 0.2.18-1 instead of 0.2.13-18
+		        to pass Debian rules for package version sttring [san]
 
 2017/10/20 Alexander Buev <san@zzz.spb.ru>
 
