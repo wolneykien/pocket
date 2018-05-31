@@ -1,3 +1,63 @@
+pocket (0.2.18-1) experimental; urgency=low
+
+    * Improve: more correct sync of code (exclude ./debian instead of debian )  
+    * Fix: UPGRADE=yes worked only once -> now normaly
+    * Fix: package update not started in case of changes in repositories
+           records -> now package update started always at begin
+           of build. But you can disable update manualy passing UPDATE=no
+           variable to pocket
+    * Improve: checks debian version before using mk-build-deps --host-arch
+               option. Used only on stretch and above. 
+  	* Improve: automaticaly unapply all patches during orig.tar.xz creation
+               (quilt added to build system packages set)  
+    * Fix: corrected version numeration to 0.2.18-1 instead of 0.2.13-18
+           to pass Debian rules for package version sttring [san]
+
+ -- Alexander Buev <san@zzz.spb.ru>  Wed, 23 May 2018 11:19:18 +0300
+
+pocket (0.2.13-17) experimental; urgency=low
+
+   * Improve: strip long `rm` output during removing
+              repo acumulator
+   * Improve: added [trusted=yes] to all foreign repos specs
+              used during build to skip any apt-get security issues
+   * Improve: added new availble values of PKGTYPE variable
+              anysrc - build only arch depended & source packages
+              allsrc - build only arch independed & source packages
+   * Fix: more correct extracting of `debian.version` from
+          package version string during creating of 
+          source archive 
+   * Fix: more correct replacing/removing packages in/from internal repo
+          after build for packages with all & any arches.          
+   * Fix: replacing/removing packages in/from internal repo
+          only with same version as builded package 
+   * Improve: added ability to upgrade packages before builf 
+              UPGRADE=yes/no variable for build target
+              as default no upgrade performed  
+   * Fix: now its possible to make a comment line inside multiline Build-Depends fields
+   * Fix: mk-build-deps produced package for target arch in case of cross build
+   * Fix: mk-build-deps is very old tool and worked totaly meangfull with -A
+          Using of this argument disabled now.
+   * Note: mk-build-deps not supporting Build-*-Arch fields
+           I thing it must be replaced in the future. [san]        
+
+ -- Alexander Buev <san@zzz.spb.ru>  Fri, 20 Oct 2017 16:20:09 +0300
+
+pocket (0.2.13-16) experimental; urgency=low
+
+   * Fix: 'rebuild' target:
+          a) trailing space removed to satisfy bash
+          b) no substitute additional -B/-b parameters to dpkg-buildpackage
+          c) call 'clearpkg' before 'getsource'
+   * Fix: 'repo' target -  do not delete all builded packages of "any"
+          architecture from repo in case of source package builded.
+   * Fix: 'filecheck' target - wrong directory path specified
+   * Fix: describe internal repo URL as copy:// instead of file://
+          to prevent apt-get create symlinks. Symlinks not possible because
+          of differnt permission of files.         
+
+ -- Alexander Buev <san@zzz.spb.ru>  Thu, 28 Sep 2017 15:43:18 +0300
+
 pocket (0.2.13-15) experimental; urgency=low
 
    * Fix: 'clean' target not stopped in case of nothing to delete

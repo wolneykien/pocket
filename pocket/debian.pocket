@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.13.15
+POCKET_VERSION = 0.2.18.1
 
 
 # Customization section
@@ -62,7 +62,7 @@ SYSPKGLIST = fakeroot $(BBOXPKG) rsync gawk
 NOSYSPKGLIST =
 
 # Build system packages:
-BUILDPKGLIST = build-essential devscripts equivs reprepro
+BUILDPKGLIST = build-essential devscripts equivs reprepro quilt
 
 # Test-root additional packages:
 TESTPKGLIST = man
@@ -468,7 +468,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(REPO)-$(DISTRO).list' >>$(BUILDROOT)/.host/entry
-	$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(subst -,_,$(ovl))_DISTRO)),echo 'echo "deb $($(subst -,_,$(ovl))_MIRROR) $(ovldist) $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_COMPONENTS)))" >/etc/apt/sources.list.d/$(ovl)-$(ovldist).list' >>$(BUILDROOT)/.host/entry;))
+	$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(subst -,_,$(ovl))_DISTRO)),echo 'echo "deb [trusted=yes] $($(subst -,_,$(ovl))_MIRROR) $(ovldist) $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_COMPONENTS)))" >/etc/apt/sources.list.d/$(ovl)-$(ovldist).list' >>$(BUILDROOT)/.host/entry;))
 	@if [ -n "$(CROSS)" -a -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
 	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
 	fi
@@ -478,20 +478,25 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	     echo "No components in $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)" >&2; \
 	     exit 1; \
 	   fi; \
-	   echo "echo \"deb file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
-	   echo "echo \"deb-src file://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   echo "echo \"deb copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   echo "echo \"deb-src copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	fi
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	 fi
-	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
+	@if [ "$(UPDATE)" != "no" ]; then \
+	  echo 'apt-get update' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	@[ -z "$(CROSS)" ] || touch $(BUILDROOT)/.cross
-	touch $@
+	#touch $@
 
 $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
+	@if [ "$(UPDATE)" = "no" ]; then \
+	  touch $@; exit 0;\
+	fi
 	$(if $(TARGET),,$(error Target architecture is not specified))
 	@echo "$(INFOPFX) Updating the package cache ($(TARGET))..."
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
@@ -511,6 +516,19 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	[ ! -e $(BUILDROOT)/etc/apt/sources.list.d/.cross ] || touch $(BUILDROOT)/.cross
 	touch $@
+
+##
+## Upgrade system packages if UPGRADE variable == yes
+## 
+$(BUILDROOT)/.upgraded: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET))
+	@if [ "$(UPGRADE)" = "yes" ]; then \
+	  echo "$(INFOPFX) Upgrade system packages..."; \
+	  echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry; \
+	  echo 'apt-get upgrade -y' >>$(BUILDROOT)/.host/entry; \
+	  chmod 0755 $(BUILDROOT)/.host/entry; \
+	  share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
+	fi
+	#touch $@
 
 $(BUILDROOT)/.cross:
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) update CROSS=yes ARCH=$(ARCH) TARGET=$(TARGET) BUILDROOT=$(BUILDROOT)
@@ -651,7 +669,7 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo '    cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
 	@echo '        rm -fv ../*.orig.tar.gz' >>$(BUILDROOT)/.host/entry
-	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''/^Version:/ {s/^Version:[[:space:]]\+//; s/^[0-9]\+://; s/-.*$$//; p}'\'').orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
+	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''/^Version:/ {s/^Version:[[:space:]]\+//; s/^[0-9]\+://; s/-[^-]*$$//; p}'\'').orig.tar.gz --exclude=\./debian/\* .' >>$(BUILDROOT)/.host/entry
 	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
@@ -727,7 +745,7 @@ define add_processing_deps_fields
 	@echo '  local VALUE=""' >>$(4)
 	@echo '  local NAME="$${2}"' >>$(4) 
 	@echo '  # extract field value as is' >>$(4) 
-	@echo '  VALUE="$$(sed -n -e '\''/^'\'\"'$${NAME}'\"\'':/I,/^[^[:space:]].*/ { 0,/^[^[:space:]]\+:/s/^[^[:space:]]\+://; /^[^[:space:]]/d; /.*/p }'\' ' "$${FILE}" ' ')"' >>$(4)
+	@echo '  VALUE="$$(sed -n -e '\''/^'\'\"'$${NAME}'\"\'':/I,/^[^[:space:]^#].*/ { 0,/^[^[:space:]]\+:/s/^[^[:space:]]\+://; /^[^[:space:]]/d; /.*/p }'\' ' "$${FILE}" ' ')"' >>$(4)
 	@echo '  # remove newline and spaces' >>$(4) 
 	@echo '  VALUE="$$(echo "$${VALUE}" | tr '\''\n'\' \' \' ' | sed "s/[[:space:]]\+/ /g" )"'  >>$(4)
 	@echo '  echo "$${VALUE}"'  >>$(4)
@@ -824,7 +842,7 @@ define add_processing_deps_fields
 	@echo '       local FROM="$${DEPNAME}"; [ -n "$${DEPARCH}" ] && FROM="$${FROM}:$${DEPARCH}"' >>$(4)
 	@echo '       local TO="$${DEPNAME}"; [ -n "$${NEWARCH}" ] && TO="$${TO}:$${NEWARCH}"' >>$(4)
 	@echo '       # replacing old dependency to new ' >>$(4)
-	@echo '       sed -i -e '\''/^'\'\"'$${FIELD}'\"\''[^:]*:/I,/^[^[:space:]]/ { 0,/^[^[:space:]][^:]*:/I { s/^\([^[:space:]][^:]*\):[[:space:]]*/\1: /I; s/[[:space:]]\+\('\'\"'$${FROM}'\"\''\)\(\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)\)/ '\'\"'$${TO}'\"\''\2/g; }; /^[[:space:]]/ { s/[[:space:]]\+\('\'\"'$${FROM}'\"\''\)\(\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)\)/ '\'\"'$${TO}'\"\''\2/g; }; }'\'   '"$${FILE}"' >>$(4)
+	@echo '       sed -i -e '\''/^'\'\"'$${FIELD}'\"\''[^:]*:/I,/^[^[:space:]^#]/ { 0,/^[^[:space:]][^:]*:/I { s/^\([^[:space:]][^:]*\):[[:space:]]*/\1: /I; s/[[:space:]]\+\('\'\"'$${FROM}'\"\''\)\(\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)\)/ '\'\"'$${TO}'\"\''\2/g; }; /^[[:space:]]/ { s/[[:space:]]\+\('\'\"'$${FROM}'\"\''\)\(\(\([[:space:]]*\(\(([^)]*)\)\|\(<[^>]*>\)\|\([[][^]]*[]]\)\)\)*\)\([[:space:]]*\([,|]\|$$\)\)\)/ '\'\"'$${TO}'\"\''\2/g; }; }'\'   '"$${FILE}"' >>$(4)
  	@echo '       echo "$(INFOPFX) $${FIELD} dep:\"$${DEPNAME}\" arch corrected:\"$${DEPARCH}\"->\"$${NEWARCH}\""' >>$(4)
 	@echo '    fi' >>$(4) 
 	@echo '  done' >>$(4) 
@@ -855,7 +873,7 @@ endef
 ## host architecture in a case of cross-build. See the `show-targets`
 ## action for more information.
 .ONESHELL:
-install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/.buildenv$(if $(TARGET),.$(TARGET)) gencontrol
+install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.$(TARGET)) gencontrol
 	# This string must not started with @ symbol die to .ONESHELL used 	
 	@echo "$(INFOPFX) Check and install the build requirements..."
 	@echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry
@@ -866,16 +884,25 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry
 	@echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry
 	$(call add_processing_deps_fields,debian/control,$(ARCH),$(TARGET),$(BUILDROOT)/.host/entry)
+	@echo 'BUILDOPTS=""' >>$(BUILDROOT)/.host/entry
+	@echo 'MKBUILDOPTS=""' >>$(BUILDROOT)/.host/entry
 	@case "$(PKGTYPE)" in \
-	  all) echo 'MKBUILDOPTS="$${MKBUILDOPTS} -A"' >>$(BUILDROOT)/.host/entry ;;\
-	  any) echo 'MKBUILDOPTS="$${MKBUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
-	  *)   echo 'MKBUILDOPTS=""' >>$(BUILDROOT)/.host/entry ;;\
+	  all|allsrc) echo 'MKBUILDOPTS="$${MKBUILDOPTS}"' >>$(BUILDROOT)/.host/entry ;\
+	              echo 'BUILDOPTS="$${BUILDOPTS} -A"' >>$(BUILDROOT)/.host/entry ;;\
+	  any|anysrc) echo 'MKBUILDOPTS="$${MKBUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;\
+	              echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
+	  *)   echo 'MKBUILDOPTS="$${MKBUILDOPTS}"' >>$(BUILDROOT)/.host/entry ;\
+	       echo 'BUILDOPTS="$${BUILDOPTS}"' >>$(BUILDROOT)/.host/entry ;;\
 	esac
 	@if [ -n "$(TARGET)" ]; then \
-	  echo ' BUILDOPTS="$${MKBUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
+	  echo ' BUILDOPTS="$${BUILDOPTS} -Pcross -a $(TARGET)"' >>$(BUILDROOT)/.host/entry; \
 	  echo ' export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
+	  echo ' if dpkg --compare-versions "$$(cat /etc/debian_version)" ">=" "9.0" ; then' >>$(BUILDROOT)/.host/entry; \
+	  echo '   MKBUILDOPTS="$${MKBUILDOPTS} --host-arch $(TARGET)"' >>$(BUILDROOT)/.host/entry; \
+	  echo ' fi' >>$(BUILDROOT)/.host/entry; \
 	fi
-	@echo 'if ! dpkg-checkbuilddeps $${BUILDOPTS} $(if $(TARGET),-a $(TARGET)); then' >>$(BUILDROOT)/.host/entry
+	@echo 'rm -f ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
+	@echo 'if ! dpkg-checkbuilddeps $${BUILDOPTS} ; then' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "$(INFOPFX) There are unmet dependencies. Preparing deps meta-package..."' >>$(BUILDROOT)/.host/entry
 	@echo '  sed -i -e '\''/^#/ d'\'' debian/control' >>$(BUILDROOT)/.host/entry
 	@echo '  mk-build-deps $${MKBUILDOPTS} debian/control || ret=$$?' >>$(BUILDROOT)/.host/entry
@@ -883,8 +910,6 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	@echo '    mv -vf *build-deps*.deb ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo '  fi' >>$(BUILDROOT)/.host/entry
 	@echo '  rm -fv *build-deps*.deb' >>$(BUILDROOT)/.host/entry
-	@echo 'else' >>$(BUILDROOT)/.host/entry
-	@echo '  rm -f ../.build-deps.deb' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'exit $$ret' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
@@ -918,16 +943,17 @@ install-builddeps: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET)) $(BUILDROOT)/
 	fi
 	$(call add_processing_deps_fields,debian/control,$(ARCH),$(TARGET),$(BUILDROOT)/.host/entry)
 	@if [ -f "$(BUILDROOT)$(BUILDER_HOME)/.build-deps.deb" ]; then \
+	   echo 'BUILDOPTS=""' >>$(BUILDROOT)/.host/entry;\
 	   case "$(PKGTYPE)" in \
-	     all) echo 'BUILDOPTS="$${BUILDOPTS} -A"' >>$(BUILDROOT)/.host/entry ;;\
-	     any) echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
-	       *) echo 'BUILDOPTS=""' >>$(BUILDROOT)/.host/entry ;;\
+	     all|allsrc) echo 'BUILDOPTS="$${BUILDOPTS} -A"' >>$(BUILDROOT)/.host/entry ;;\
+	     any|anysrc) echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
+	       *) echo 'BUILDOPTS="$${BUILDOPTS}"' >>$(BUILDROOT)/.host/entry ;;\
 	   esac; \
 	   if [ "x$(TARGET)" != "x" ]; then \
-	     echo '  BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
+	     echo '  BUILDOPTS="$${BUILDOPTS} -Pcross -a $(TARGET)"' >>$(BUILDROOT)/.host/entry; \
 	     echo '  export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
 	   fi; \
-	   echo 'if ! dpkg-checkbuilddeps $(if $(TARGET),-a $(TARGET)) $${BUILDOPTS}; then' >>$(BUILDROOT)/.host/entry; \
+	   echo 'if ! dpkg-checkbuilddeps $${BUILDOPTS}; then' >>$(BUILDROOT)/.host/entry; \
 	   echo '  echo "$(INFOPFX) Something went wrong: the build requirements are still not met!"' >>$(BUILDROOT)/.host/entry; \
 	   echo '  ret=1' >>$(BUILDROOT)/.host/entry; \
 	   echo 'else' >>$(BUILDROOT)/.host/entry; \
@@ -1003,6 +1029,10 @@ cleanpkg: $(BUILDROOT)/.configured
 ## the `dpkg-buildpackage` tool to build only specified types of packages
 ## as default All types of packages processed
 ##
+##     The `UPGRADE=<yes/no>` parameter can be used to instruct
+## the pocket to upgrade all system packages before build
+## as default 'no' is used
+##
 .ONESHELL:
 buildpkg: | cleanpkg install-builddeps 
 	# This comment needed because of target marked as .ONESHELL 
@@ -1031,6 +1061,8 @@ buildpkg: | cleanpkg install-builddeps
 	  any) echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
 	  bin) echo 'BUILDOPTS="$${BUILDOPTS} -b"' >>$(BUILDROOT)/.host/entry ;;\
 	  src) echo 'BUILDOPTS="$${BUILDOPTS} -S"' >>$(BUILDROOT)/.host/entry ;;\
+	  allsrc) echo 'BUILDOPTS="$${BUILDOPTS} -g"' >>$(BUILDROOT)/.host/entry ;;\
+	  anysrc) echo 'BUILDOPTS="$${BUILDOPTS} -G"' >>$(BUILDROOT)/.host/entry ;;\
 	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F"' >>$(BUILDROOT)/.host/entry ;;\
 	esac
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
@@ -1068,6 +1100,10 @@ buildpkg: | cleanpkg install-builddeps
 ## the `dpkg-buildpackage` tool to build only specified types of packages
 ## as default All types of packages processed
 ##
+##     The `UPGRADE=<yes/no>` parameter can be used to instruct
+## the pocket to upgrade all system packages before build
+## as default 'no' is used
+##
 .ONESHELL:
 rebuildpkg: | cleanpkg getsource install-builddeps
 	# This comment needed because of target marked as .ONESHELL 
@@ -1084,7 +1120,7 @@ rebuildpkg: | cleanpkg getsource install-builddeps
 	@if [ "x$(NOCLEAN)" != "x"  ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -nc"' >>$(BUILDROOT)/.host/entry; \
 	fi  
-	@if [ -n "$(TARGET)" ]; then \	  
+	@if [ -n "$(TARGET)" ]; then \
 	  echo 'BUILDOPTS="$${BUILDOPTS} -Pcross"' >>$(BUILDROOT)/.host/entry; \
 	  echo 'export DEB_BUILD_PROFILES=cross' >>$(BUILDROOT)/.host/entry; \
 	fi
@@ -1096,6 +1132,8 @@ rebuildpkg: | cleanpkg getsource install-builddeps
 	  any) echo 'BUILDOPTS="$${BUILDOPTS} -B"' >>$(BUILDROOT)/.host/entry ;;\
 	  bin) echo 'BUILDOPTS="$${BUILDOPTS} -b"' >>$(BUILDROOT)/.host/entry ;;\
 	  src) echo 'BUILDOPTS="$${BUILDOPTS} -S"' >>$(BUILDROOT)/.host/entry ;;\
+	  allsrc) echo 'BUILDOPTS="$${BUILDOPTS} -g"' >>$(BUILDROOT)/.host/entry ;;\
+	  anysrc) echo 'BUILDOPTS="$${BUILDOPTS} -G"' >>$(BUILDROOT)/.host/entry ;;\
 	  *)   echo 'BUILDOPTS="$${BUILDOPTS} -F"' >>$(BUILDROOT)/.host/entry ;;\
 	esac
 	@echo 'dpkg-buildpackage -d $(if $(TARGET),-a$(TARGET)) $${BUILDOPTS}' >>$(BUILDROOT)/.host/entry
@@ -1139,7 +1177,7 @@ filecheck: $(BUILDROOT)/.buildok
 	@echo '  [ ! -d "$${INSTDIR}" ] && exit 0'>>$(BUILDROOT)/.host/entry
 	@echo '  cd "$${INSTDIR}" '>>$(BUILDROOT)/.host/entry
 	@echo 'else' >>$(BUILDROOT)/.host/entry
-	@echo '  cd $(SOURCEDIR)/debian/tmp' >>$(BUILDROOT)/.host/entry
+	@echo '  cd debian/tmp' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@echo 'find | sed -e '\''/^\.\/DEBIAN\(\/.*\)\?$$/ d'\'' | sort -u >$(BUILDER_HOME)/.filelist' >>$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
@@ -1222,28 +1260,26 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '    esac' >>$(BUILDROOT)/.host/entry
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '  for a in $$archs; do' >>$(BUILDROOT)/.host/entry
-	@echo '    [ -z "$$archfilter" ] || archfilter="$$archfilter | "' >>$(BUILDROOT)/.host/entry
-	@echo '    [ -z "$$delarchs" ] || delarchs="$$delarchs "' >>$(BUILDROOT)/.host/entry
 	@echo '    case "$$a" in' >>$(BUILDROOT)/.host/entry
 	@echo '      all)' >>$(BUILDROOT)/.host/entry
-	@echo '        archfilter="$${archfilter}Architecture (==all)"' >>$(BUILDROOT)/.host/entry
-	@echo '        delarchs="$${delarchs}all"' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter} | Architecture (==all)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs} all"' >>$(BUILDROOT)/.host/entry
 	@echo '        ;;' >>$(BUILDROOT)/.host/entry
 	@echo '      source)' >>$(BUILDROOT)/.host/entry
-	@echo '        archfilter=' >>$(BUILDROOT)/.host/entry
-	@echo '        delarchs="all and any"' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter} | \$$Architecture (==source)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs} source"' >>$(BUILDROOT)/.host/entry
 	@echo '        delsrc=1' >>$(BUILDROOT)/.host/entry
-	@echo '        break' >>$(BUILDROOT)/.host/entry
 	@echo '        ;;' >>$(BUILDROOT)/.host/entry
 	@echo '      *)' >>$(BUILDROOT)/.host/entry
-	@echo '        archfilter="$${archfilter}\$$Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
-	@echo '        delarchs="$${delarchs}$$a"' >>$(BUILDROOT)/.host/entry
+	@echo '        archfilter="$${archfilter} | Architecture (==$$a)"' >>$(BUILDROOT)/.host/entry
+	@echo '        delarchs="$${delarchs} $$a"' >>$(BUILDROOT)/.host/entry
 	@echo '        ;;' >>$(BUILDROOT)/.host/entry
 	@echo '    esac' >>$(BUILDROOT)/.host/entry
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "Remove $$srcname packages from architectures: $$delarchs"' >>$(BUILDROOT)/.host/entry
-	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname)$${archfilter:+, $$archfilter}"' >>$(BUILDROOT)/.host/entry
+	@echo '  if [ -n "$${archfilter}" ]; then  archfilter="( !Source $${archfilter} )"; fi' >>$(BUILDROOT)/.host/entry
+	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname),\$$Version (==$$srcver)$${archfilter:+, $$archfilter}"' >>$(BUILDROOT)/.host/entry
 	@echo '  if [ $$delsrc -ne 0 ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    echo "Add $$srcname $$srcver source package to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry
 	@echo '    reprepro -b $(OUTREPODIR) --ignore=wrongdistribution includedsc $(OUTNAME) $${f%_*}.dsc' >>$(BUILDROOT)/.host/entry
@@ -1273,12 +1309,12 @@ clean-repo:
               -e $(BUILDROOT)$(BUSYBOX) ]; \
         then \
 	  echo '#!$(BUSYBOX) sh' >$(BUILDROOT)/.host/entry; \
-	  echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry; \
+	  echo 'rm -rf $(OUTREPODIR) > /dev/null' >>$(BUILDROOT)/.host/entry; \
 	  chmod 0755 $(BUILDROOT)/.host/entry; \
 	  $(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
 	fi
-	rm -rfv $(BUILDREPO)
-	rm -fv $(BUILDROOT)/.updated
+	rm -rf $(BUILDREPO) > /dev/null
+	rm -f $(BUILDROOT)/.updated 
 
 ##
 ## * `build`    Start or continue building the Debian package from
