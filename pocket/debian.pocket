@@ -459,7 +459,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	@echo "$(INFOPFX) Updating the package cache..."
 	rm -rf $(BUILDROOT)$(INREPODIR)
 	if [ -f $(BUILDREPO)/dists/$(OUTNAME)/Release ]; then \
-	   mkdir $(BUILDROOT)$(INREPODIR); \
+	   mkdir -p $(BUILDROOT)$(INREPODIR); \
 	   cp -a $(BUILDREPO)/* \
 		 $(BUILDROOT)$(INREPODIR)/ ; \
 	fi
@@ -976,7 +976,11 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 checkchroot:
 	# This comment needed because of target marked as .ONESHELL 
 	@echo "$(INFOPFX) Checking current chroot..."
-	@CHROOT_DISTRO="$$(. $(BUILDROOT)/etc/os-release; echo $${VERSION} | sed 's/^.*( *\(.*\) *)/\1/' )"
+	@if [ -f "$(BUILDROOT)/etc/os-release" ] ; then
+	  CHROOT_DISTRO="$$(. $(BUILDROOT)/etc/os-release; echo $${VERSION} | sed 's/^.*( *\(.*\) *)/\1/' )"
+	else
+	  CHROOT_DISTRO="unknown" 
+	fi
 	@if [ "$${CHROOT_DISTRO}" != "$(DISTRO)" ] ; then 
 	  echo "$(INFOPFX) WARNING: Chroot distribution mismatch detected!!! Needed:$(DISTRO) Current:$${CHROOT_DISTRO}" 
 	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean 
@@ -984,7 +988,6 @@ checkchroot:
 	fi
 	@echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; 
 	@echo 'CHROOT_ARCH="$$(dpkg-architecture -qDEB_BUILD_ARCH)"' >>$(BUILDROOT)/.host/entry; 
-	@echo '  echo  Needed:$(ARCH) Current:$${CHROOT_ARCH} ' >>$(BUILDROOT)/.host/entry; 
 	@echo 'if [ "$${CHROOT_ARCH}" != "$(ARCH)" ] ; then ' >>$(BUILDROOT)/.host/entry; 
 	@echo '  echo $(INFOPFX) WARNING: Chroot arch mismatch detected!!! Needed:$(ARCH) Current:$${CHROOT_ARCH} ' >>$(BUILDROOT)/.host/entry; 
 	@echo '  exit 1 ' >>$(BUILDROOT)/.host/entry; 
