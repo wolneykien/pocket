@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.18.1
+POCKET_VERSION = 0.2.19.1
 
 
 # Customization section
@@ -79,15 +79,15 @@ INFOPFX=[pocket]
 # Output repository name and description
 OUTNAME = pocket
 OUTDESC = Built for $(REPO):$(DISTRO) with the help of Pocket and Hasher (http://github.com/wolneykien/pocket)
-BUILDREPO = $(if $(filter pocket,$(OUTNAME)),repo,$(OUTNAME)-repo)
+BUILDREPO = $(if $(filter pocket,$(OUTNAME)),"repo/$(DISTRO)","repo-$(OUTNAME)/$(DISTRO)")
 
 SOURCEDIR = SOURCE
 
 # Essential variables
 # -------------------
 
-BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))
-INSTALLROOT = installroot$(if $(ARCH),-$(ARCH))
+BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))/$(DISTRO)
+INSTALLROOT = installroot$(if $(ARCH),-$(ARCH))/$(DISTRO)
 
 comma:= ,
 empty:=
@@ -104,9 +104,9 @@ ROOTER = rooter
 BUILDER = builder
 BUILDER_HOME = /usr/src
 INDIR = /.in
-INREPODIR = $(INDIR)/repo
+INREPODIR = $(INDIR)/repo/$(DISTRO)
 OUTDIR = /.out
-OUTREPODIR = $(OUTDIR)/repo
+OUTREPODIR = $(OUTDIR)/repo/$(DISTRO)
 
 FAKEROOT = /usr/bin/fakeroot-sysv $(if $(wildcard $(BUILDROOT)/.fakedata),-i /.fakedata) -s /.fakedata
 SHELL = /bin/bash
@@ -640,7 +640,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 ## `SKIPSYNC` configuration variable (or command-line argument) are
 ## not copied into the buildroot. By default the skip list is
 ## "`.git* .svn*`".
-sync-in: $(BUILDROOT)/.buildenv
+sync-in: | checkchroot $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
 	rsync -aI --inplace --delete --delete-excluded $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(abspath $(FROM))/ $(BUILDROOT)$(INDIR)/$(SOURCEDIR)
 	case "$(COMPOSE)" in \
@@ -967,7 +967,35 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 	   echo '$(INFOPFX) Build requirements are met. Ready to build'; \
 	 fi
 
-
+##
+## * `checkchroot`    Check version & arch of prepared  in the
+#  chroot system and start full clean process in case of mismatch detected.
+## Version & and native arch of system must be idencial to required for build.
+##
+.ONESHELL:
+checkchroot:
+	# This comment needed because of target marked as .ONESHELL 
+	@echo "$(INFOPFX) Checking current chroot..."
+	@CHROOT_DISTRO="$$(. $(BUILDROOT)/etc/os-release; echo $${VERSION} | sed 's/^.*( *\(.*\) *)/\1/' )"
+	@if [ "$${CHROOT_DISTRO}" != "$(DISTRO)" ] ; then 
+	  echo "$(INFOPFX) WARNING: Chroot distribution mismatch detected!!! Needed:$(DISTRO) Current:$${CHROOT_DISTRO}" 
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean 
+	  exit 0 
+	fi
+	@echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; 
+	@echo 'CHROOT_ARCH="$$(dpkg-architecture -qDEB_BUILD_ARCH)"' >>$(BUILDROOT)/.host/entry; 
+	@echo '  echo  Needed:$(ARCH) Current:$${CHROOT_ARCH} ' >>$(BUILDROOT)/.host/entry; 
+	@echo 'if [ "$${CHROOT_ARCH}" != "$(ARCH)" ] ; then ' >>$(BUILDROOT)/.host/entry; 
+	@echo '  echo $(INFOPFX) WARNING: Chroot arch mismatch detected!!! Needed:$(ARCH) Current:$${CHROOT_ARCH} ' >>$(BUILDROOT)/.host/entry; 
+	@echo '  exit 1 ' >>$(BUILDROOT)/.host/entry; 
+	@echo 'fi' >>$(BUILDROOT)/.host/entry; 
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; 
+	@if [ $$? -ne 0 ]; then 
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean 
+	fi 
+	exit 0  
+  
+  
 ##
 ## * `cleanpkg`    Clean (delete) the files produced by the last
 ## package building procedure. The wildcard includes: `*.deb`,
@@ -1209,7 +1237,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
-	@echo 'mkdir $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir -p $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@if [ -e $(BUILDROOT)$(INREPODIR)/conf/distributions ]; then \
 	   echo 'cp -a $(INREPODIR)/* $(OUTREPODIR)/' >>$(BUILDROOT)/.host/entry; \
 	fi

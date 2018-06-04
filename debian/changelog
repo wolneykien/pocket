@@ -1,3 +1,23 @@
+pocket (0.2.19-1) experimental; urgency=low
+
+    * Improve:  separate chroots for different distributions
+
+                now pocket maintenance separate:
+
+                  1) build roots
+                  2) repos
+                  3) install-roots
+
+                for differrent  distribution (such as jessie, stretch) in one
+                pocket directory 
+
+    * Improve:  added checking of current build root system
+                for native arch & distribution missmatch.
+                If missmatch with required for build parameters (arch & distribution)
+                detected then chroot cleared and initialized automaticaly
+
+ -- Alexander Buev <san@zzz.spb.ru>  Mon, 04 Jun 2018 11:44:43 +0300
+
 pocket (0.2.18-1) experimental; urgency=low
 
     * Improve: more correct sync of code (exclude ./debian instead of debian )  

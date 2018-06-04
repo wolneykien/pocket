@@ -1,6 +1,27 @@
+2018/06/04 Alexander Buev <san@zzz.spb.ru>
+
+	* debian.pocket (0.2.19.1)
+
+	  * Improve:  separate chroots for different distributions
+
+								now pocket maintenance separate:
+
+								  1) build roots
+									2) repos
+									3) install-roots
+
+								for differrent  distribution (such as jessie, stretch) in one
+								pocket directory 
+
+	  * Improve: 	added checking current build root system
+		            for native arch & distribution missmatch.
+								If missmatch with required for build parameters (arch & distribution)
+								detected then chroot cleared and initialized automaticaly
+
+
 2018/05/23 Alexander Buev <san@zzz.spb.ru>
 
-	* debian.pocket (0.2.13.18)
+	* debian.pocket (0.2.18.1)
 	   
 		 * Improve: more correct sync of code (exclude ./debian instead of debian )  
 		 * Fix: UPGRADE=yes worked only once -> now normaly
