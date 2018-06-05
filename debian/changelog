@@ -16,6 +16,9 @@ pocket (0.2.19-1) experimental; urgency=low
                 If missmatch with required for build parameters (arch & distribution)
                 detected then chroot cleared and initialized automaticaly
 
+  	* Improve:  added pocket-build script with option syntax similar	
+  	            to dpkg-buildpackage command but with exentions
+
  -- Alexander Buev <san@zzz.spb.ru>  Mon, 04 Jun 2018 11:44:43 +0300
 
 pocket (0.2.18-1) experimental; urgency=low

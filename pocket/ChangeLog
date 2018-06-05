@@ -18,6 +18,9 @@
 								If missmatch with required for build parameters (arch & distribution)
 								detected then chroot cleared and initialized automaticaly
 
+		* Improve: added pocket-build script with option syntax similar	
+		           to dpkg-buildpackage command but with exentions
+
 
 2018/05/23 Alexander Buev <san@zzz.spb.ru>
 

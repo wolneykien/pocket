@@ -1,0 +1,304 @@
+#!/bin/sh -ufe
+
+USERPOCKETCFGDIR="$HOME/.pocket"     # Per user pocket config dir
+SYSTEMPOCKETCFGDIR="/etc/pocket"     # Per system pocket config dir
+
+POCKETDIR=""
+POCKETREPOS=""
+POCKETMNTPOINTS=""
+POCKETFILE=""
+VERBOSE="0"
+DRY_RUN="0"
+ARCH=""
+CPUCNT=""
+INIT_ARCH=""
+CLEAN="" 
+CLEANREPO="" 
+REPOS=""
+INDIR="."                            # default indir=. similar to sbuild/debuild
+OUTDIR=""                            
+PKGTYPE="*"                          # build all type of packages
+DEFVENDOR="debian"
+DISTRO="${DEFVENDOR}:jessie"	
+MNTPOINTS=""
+UPGRADE=""
+
+PROG="pocket-build"
+
+# --------------------------------------------------------------- #
+# Function that prints help message                               #
+# --------------------------------------------------------------- #
+usage() {
+cat <<EOF
+${PROG} [options] <arch>
+
+Available options:
+
+  -h, --help                            Print help and exit
+  -v, --verbose                         Print more useful information during work
+  --dry-run                             Check input and print information about
+  -r, --repos <repolist>                Set comma separated repository names list to use during build
+  -m, --mount <mountlist>               Overwrite comma separated list of host system mountpoints 
+                                        assigned in pocket configuration
+  -C, --clean                           Full clear of chroot before build (for clean build)
+  -c,                                   Clear only all previously installed build depends before build
+  --crepo,                              Additionaly clear internal repo before build
+  --upg,                                Upgrade packages before build
+  -d <distribution>                     Set debian distribution name to build for (default:${DISTRO})
+  -A, --all                             Build only arch independed  packages (arch==all)
+  -B, --any                             Build only arch depended packages (arch==any)
+  -b, --bin                             Build only binary packages (arch==any|all)
+  -S, --src                             Build only source packages 
+  -g, --allsrc                          Build only source & arch independed packages 
+  -G, --anysrc                          Build only source & arch depended packages 
+  -i, --indir <directory>               Use this directory as source/input directory (default:${INDIR})
+  -o, --outdir <directory>              Use this directory as packages/output directory
+  -P <directory>                        Overwrite pocket directory assigned in pocket configuration
+  -j <count>                            Limit number of CPU cores to use during build
+
+Example of arches:        armhf, i386, amd64
+EOF
+}
+
+# --------------------------------------------------------------- #
+# Useful wrapper. It prints an command if verbose mode is enabled #
+# and axecute it if dry-run is disabled                           #
+# --------------------------------------------------------------- #
+execute_cmd()
+{
+  local cmd="$@"
+
+  if [ "$VERBOSE" -gt 1 ]; then
+    echo $cmd
+  fi
+
+  if [ "x$DRY_RUN" = "x0" ]; then 
+    eval $cmd
+    return $?
+  fi
+}
+
+# ---------------------------------------------------------------- #
+# Function parses both short and long options using getopt utility #
+# it expects no arguments after options list                       #
+# ---------------------------------------------------------------- #
+parse_opts()
+{
+  INPUT_OPTIONS="$@"
+
+  SHORTOPTS="hvd:r:cCj:P:i:o:ABbSm:Gg"
+  LONGOPTS="help,verbose,dry-run,repos,clean,indir,outdir,crepo,all,any,bin,src,mount,allsrc,anysrc,upg"
+
+  # options may be followed by one colon to indicate they have a required argument
+  options=`getopt -n ${PROG} -o $SHORTOPTS --long $LONGOPTS -n $0 -- $INPUT_OPTIONS`
+
+  if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+
+  eval set -- $options
+
+  while true
+  do
+    case "$1" in
+      -h|--help)    usage; exit 0 ;;
+      -v|--verbose) VERBOSE="$((${VERBOSE}+1))" ;;
+      -C|--clean)   CLEAN="full" ;;
+      -c)           CLEAN="deps" ;;
+      --crepo)      CLEANREPO="1" ;;
+      --dry-run) DRY_RUN="1" ;;
+      -A|--all) PKGTYPE="all" ;;
+      -B|--any) PKGTYPE="any" ;;
+      -b|--bin) PKGTYPE="bin" ;;
+      -S|--src) PKGTYPE="src" ;;
+      -g|--allsrc) PKGTYPE="allsrc" ;;
+      -G|--anysrc) PKGTYPE="anysrc" ;;
+      --upg)       UPGRADE="yes" ;;
+      -r|--repos)   shift; REPOS="${1}";;
+      -m|--mount)   shift; MNTPOINTS="${1}";;
+      -j)           shift; CPUCNT="${1}" ;;
+      -P)           shift; POCKETDIR="${1}" ;;
+      -o|--outdir)  shift; OUTDIR="${1}" ;;
+      -i|--indir)   shift; INDIR="${1}" ;;
+      -d)           shift; DISTRO="${1}" ;;
+      --)           shift ;break ;;
+      *)            echo "Internal error!" ; exit 1 ;;
+    esac
+    shift
+  done
+
+  if [ $# -lt 1 ]; then 
+    echo "Error: Architecture not specified !!!"
+    usage
+    exit 1
+  fi
+
+  ARCH="${1}"
+}
+
+validate_opts () {
+  if ! dpkg-architecture -A "${ARCH}" > /dev/null 2>&1 ; then
+    echo "Wrong arch $ARCH" ;       
+    exit 1 
+  fi 
+  if [ -z "${DISTRO}" ]; then
+    echo "No debian disribution specified" ;       
+    exit 1 
+  fi 
+}
+
+init() 
+{
+  local INIT_ARCH="${1}"
+  local REPOS="${2}"
+  local POCKETOPTS="${3}"
+
+  # We remove pocket file to be sure
+  # that we start from clean point 
+  # but this is paranoid action :)
+  execute_cmd "rm -f ${POCKETFILE}"
+
+  echo "Initilizing pocket for build..."
+  echo "Native arch:${INIT_ARCH} Repositories:${REPOS}"
+
+  # Pocket init realy create (or editing existing) $POCKETDIR/Pocketfile  
+  # This procedure is fasten and can be repeated every time as needed
+  execute_cmd "pocket ${POCKETOPTS} init -a ${INIT_ARCH} -u ${DISTRO} ${REPOS}"
+
+}
+
+clean()
+{
+  local CLEAN="${1}"
+  local POCKETOPTS="${2}"
+
+  set -e
+
+  # Any of call to pocket must be done if Pocketfile exist  
+  if [ -f "${POCKETFILE}" ]; then     
+    if [ "$CLEAN" = "full" ]; then   
+      execute_cmd "pocket ${POCKETOPTS} clean"
+    else
+      if [ "$CLEAN" = "deps" ]  ; then   
+        execute_cmd "pocket ${POCKETOPTS} cleanpkg CLEANDEP=1"
+      fi	
+    fi
+    if [ -n "$CLEANREPO" ]  ; then   
+      execute_cmd "pocket ${POCKETOPTS} clean-repo"
+    fi
+  fi
+
+  set +e
+}
+
+build() 
+{
+  local ARCH="${1}"
+  local POCKETOPTS="${2}"
+  local INDIR="${3}"
+  local OUTDIR="${4}"
+
+  local BUILDOPTS="PKGTYPE=${PKGTYPE}"
+
+  if [ -n "${UPGRADE}" ]; then
+    BUILDOPTS="${BUILDOPTS} UPGRADE=${UPGRADE}"
+  fi 
+
+  set -e
+  execute_cmd "pocket ${POCKETOPTS} sync-in ${INDIR}"
+  execute_cmd "pocket ${POCKETOPTS} -N -t ${ARCH} build ${BUILDOPTS}"
+
+  if [ -n "${OUTDIR}" ]; then
+    execute_cmd "pocket ${POCKETOPTS} copy-results ${OUTDIR}"
+  fi	
+  set +e
+
+}
+
+# Attempt to retrive configuration from user or system conf
+if [ -f "${USERPOCKETCFGDIR}/pocket.conf" ]; then
+  . "${USERPOCKETCFGDIR}/pocket.conf"
+else
+  if [ -f "${SYSTEMPOCKETCFGDIR}/pocket.conf" ]; then
+    . "${SYSTEMPOCKETCFGDIR}/pocket.conf"
+  fi    
+fi
+
+parse_opts "$@"
+validate_opts
+
+CURDIR="$(pwd)"
+
+if [ -z "${INDIR}" ]; then
+  INDIR="."
+fi
+
+if [ ! -d "${INDIR}" ]; then
+  echo "Error ${INDIR} not exist"
+  exit 1
+fi
+
+INDIR="$(readlink -e "${INDIR}")"
+
+if [ -n "${OUTDIR}" ]; then
+  if [ ! -d "${OUTDIR}" ]; then
+    echo "Error ${OUTDIR} not exist"
+    exit 1
+  fi
+  OUTDIR="$(readlink -e "${OUTDIR}")"
+fi
+
+if ! echo ${DISTRO} | grep -q ':' ; then
+  DISTRO="${DEFVENDOR}:${DISTRO}"
+fi
+
+# Get current system native arch
+INIT_ARCH="$(dpkg-architecture -q DEB_BUILD_ARCH)"
+
+# This is an exception - we can create chroot with i386 binaries on x86_64 machine 
+# die to ability to execute i386 code on x86_64 
+# In this case we do not need cross compilation because i386 is 
+# a native arch for this chroot 
+if [ "$INIT_ARCH" = "amd64" -a "$ARCH" = "i386" ] ; then
+  INIT_ARCH="$ARCH"
+fi
+
+# repos given from command line has high priority than env variable
+if [ -n "${REPOS}" ]; then
+  POCKETREPOS="$(echo ${REPOS} |  sed 's/,/ /g')"
+fi
+
+if [ -z "${POCKETDIR}" ]; then
+  echo "ERR: You must specify -P option or export POCKETDIR env variable"
+  exit 1
+fi 
+
+POCKETFILE="${POCKETDIR}/Pocketfile"
+
+# Check umask
+# We must be sure that default umask for current user & coresponding hasher pseudo users is 022 
+# In this case no problem occured during chroot creation 
+# (hasher has a paranoid policy about security)
+UM="$(umask)"
+if [ ! "$(($UM))" -eq $((0022)) ]; then
+  echo "ERR: umask != 0022. You must use umask 022 for all hasher-priv users for correct chroot creation"
+  exit 1
+fi 
+
+# Common pocket options
+POCKETOPTS=""
+if [ -n "${POCKETDIR}" ]; then POCKETOPTS="${POCKETOPTS} -C ${POCKETDIR}" ; fi
+if [ -n "${CPUCNT}" ]; then POCKETOPTS="${POCKETOPTS} -j ${CPUCNT}" ; fi
+if [ "${VERBOSE}" -gt 1 ]; then POCKETOPTS="${POCKETOPTS} -d" ; fi
+if [ -n "${MNTPOINTS}" ]; then POCKETOPTS="${POCKETOPTS} -m ${MNTPOINTS}" ; fi
+
+echo "Pocket dir ${POCKETDIR}"
+
+# initialize pocket for build (recreate pocket file)
+init  "${INIT_ARCH}" "${POCKETREPOS}" "${POCKETOPTS}"
+
+# clean chroot, repo, depends if needed 
+clean "${CLEAN}" "${POCKETOPTS}"
+
+# copy source, build, copy results
+build "${ARCH}" "${POCKETOPTS}" "${INDIR}" "${OUTDIR}"
+
+cd "${CURDIR}"
