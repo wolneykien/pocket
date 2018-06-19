@@ -1323,7 +1323,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	rm -rf $(BUILDREPO)
-	mkdir $(BUILDREPO)
+	mkdir -p $(BUILDREPO)
 	cp -a $(BUILDROOT)$(OUTREPODIR)/* \
 	      $(BUILDREPO)/
 	touch $(BUILDREPO)/dists/$(OUTNAME)/Release
