@@ -1,3 +1,14 @@
+2018/06/28 Alexander Buev <san@zzz.spb.ru>
+
+	* debian.pocket (0.2.20.1)
+
+    * Fixed: no checking chroot arch if chroot dir not exist
+    * Fixed: correctly processing EXTRA_PACKAGES & INITIAL_PACKAGES in repo
+      definition file
+    * Fixed: new chroot repo dir not created in new place (-p added to mkdir)
+    * Improve: added ability to owerwrite repository MIRROR for specific 
+               distribution in repo definition file 
+
 2018/06/04 Alexander Buev <san@zzz.spb.ru>
 
 	* debian.pocket (0.2.19.1)

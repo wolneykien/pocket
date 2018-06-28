@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.19.1
+POCKET_VERSION = 0.2.20.1
 
 
 # Customization section
@@ -143,6 +143,14 @@ BUILDROOTTARDIRS = debootstrap var/cache/apt/archives var/lib/apt/lists
 BUSYBOX = /.host/bin/busybox
 APTARCHIVES = /var/cache/apt/archives
 
+# This target executed always and before any other 
+.PHONY: first
+first:
+	$(eval REPOMIRROR=$(if $($(REPO)_$(DISTRO)_MIRROR),$($(REPO)_$(DISTRO)_MIRROR),$($(REPO)_MIRROR)))
+	$(eval SYSPKGLIST+=$(if $($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_INITIAL_PACKAGES)))
+	$(eval NOSYSPKGLIST+=$(if $($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_EXCLUDE_PACKAGES)))
+	$(eval BUILDPKGLIST+=$(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES)))
+-include first
 
 # Output brief help page by default
 default: help
@@ -310,7 +318,7 @@ $(DEBPATHS): $(BUILDROOTTAR) $(BUILDROOT)/.stamp
 .ONESHELL:
 $(BUILDROOTTAR):
 	$(if $(REPO),,$(error No repositories are specified))
-	$(if $($(REPO)_MIRROR),,$(error Mirror of "$(REPO)" is unknown))
+	$(if $(REPOMIRROR),,$(error Mirror of "$(REPO)" is unknown))
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	@echo "$(INFOPFX) Downloading the base packages..."
 	rm -rf $(BUILDROOT)/.host
@@ -321,7 +329,7 @@ $(BUILDROOTTAR):
 	    $(if $(strip $(SYSPKGLIST)),--include=$(subst $(space),$(comma),$(strip $(SYSPKGLIST)))) \
 	    $(if $(strip $(NOSYSPKGLIST)),--exclude=$(subst $(space),$(comma),$(strip $(NOSYSPKGLIST)))) \
 	    $(if $(DISTCOMPS),--components=$(subst $(space),$(comma),$(DISTCOMPS))) \
-		$(DISTRO) $(BUILDROOT)/.host $($(REPO)_MIRROR)
+		$(DISTRO) $(BUILDROOT)/.host $(REPOMIRROR)
 	@if [ $$? -ne 0 ]; then exit 1; fi
 	tar cpf $@ -C $(BUILDROOT)/.host $(BUILDROOTTARDIRS)
 
@@ -467,7 +475,7 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
-	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(REPO)-$(DISTRO).list' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "deb $(REPOMIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(REPO)-$(DISTRO).list' >>$(BUILDROOT)/.host/entry
 	$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(subst -,_,$(ovl))_DISTRO)),echo 'echo "deb [trusted=yes] $($(subst -,_,$(ovl))_MIRROR) $(ovldist) $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_COMPONENTS)))" >/etc/apt/sources.list.d/$(ovl)-$(ovldist).list' >>$(BUILDROOT)/.host/entry;))
 	@if [ -n "$(CROSS)" -a -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
 	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
@@ -591,7 +599,9 @@ shell: $(BUILDROOT)/.configured
 ## information.
 install-buildenv: $(BUILDROOT)/.buildenv $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET))
 
+.ONESHELL:
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
+	# This string must not started with @ symbol die to .ONESHELL used 	
 	@echo "$(INFOPFX) Installing the build environment: $(strip $(BUILDPKGLIST))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
@@ -601,9 +611,12 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	@if [ $$? -ne 0 ]; then exit 1; fi
 	touch $@
 
+.ONESHELL:
 $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$(TARGET)
+	# This string must not started with @ symbol die to .ONESHELL used 	
 	@echo "$(INFOPFX) Installing the build environment ($(TARGET)): $(strip $(CROSSBUILDPKGLIST))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
@@ -617,6 +630,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	@if [ $$? -ne 0 ]; then exit 1; fi
 	touch $@
 
 ##
@@ -974,7 +988,8 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 ##
 .ONESHELL:
 checkchroot:
-	# This comment needed because of target marked as .ONESHELL 
+	# This comment need because of target marked as .ONESHELL 
+	@[ -d $(BUILDROOT) ] || exit 0
 	@echo "$(INFOPFX) Checking current chroot..."
 	@if [ -f "$(BUILDROOT)/etc/os-release" ] ; then
 	  CHROOT_DISTRO="$$(. $(BUILDROOT)/etc/os-release; echo $${VERSION} | sed 's/^.*( *\(.*\) *)/\1/' )"
@@ -1466,7 +1481,7 @@ show-config:
 	@echo 'Flavour: $(POCKET_FLAVOUR)'
 	@echo 'Version: $(POCKET_VERSION)'
 	@echo 'Distro: $(REPO):$(DISTRO)'
-	@echo 'Mirror: $($(REPO)_MIRROR)'
+	@echo 'Mirror: $(REPOMIRROR)'
 	@echo 'Components: $(DISTCOMPS)'
 	$(if $(OVERLAYS),@echo 'Overlays: $(OVERLAYS)')
 	@echo 'Architecture: $(if $(ARCH),$(ARCH),$(shell dpkg --print-architecture))'
