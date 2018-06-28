@@ -67,6 +67,16 @@ Options and arguments
 
 Example of arches:        armhf, i386, amd64
 
+Local using
+---------------
+
+It is well when the scripts are installed in system from .deb package.
+But if you want to execute them without installation just call
+
+        $ . pocket/local.env
+
+Now you can call the scripts from any place.
+
 Getting info
 ------------
 
