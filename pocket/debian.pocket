@@ -610,7 +610,7 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUNENV_MNT) $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	@if [ $$? -ne 0 ]; then exit 1; fi
 	touch $@
 
@@ -629,7 +629,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 	    echo 'fi' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUNENV_MNT) $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	@if [ $$? -ne 0 ]; then exit 1; fi
 	touch $@
 
