@@ -1,3 +1,9 @@
+pocket (0.2.22-1) experimental; urgency=low
+
+    * install-builddeps target use RUNENV_MNT too.
+
+ -- Sergey Kolemagin <s.kolemagin@metrotek.ru>  Mon, 09 Jul 2018 14:03:25 +0300
+
 pocket (0.2.21-1) experimental; urgency=low
 
     * Fixed: .buildenv and .buildenv.$(TARGET) targets use RUNENV_MNT variable.

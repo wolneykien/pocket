@@ -944,7 +944,7 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 	   echo 'fi' >>$(BUILDROOT)/.host/entry; \
 	   ret=0; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$?; \
+	   share_network=yes $(RUNENV_MNT) $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$?; \
 	   [ $$ret -eq 0 ] || exit $$ret; \
 	   echo "$(INFOPFX) Check the build requirements again..."; \
 	   echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; \
