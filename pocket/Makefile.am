@@ -1,5 +1,5 @@
 
-bin_SCRIPTS = pocket pocket-init
+bin_SCRIPTS = pocket pocket-init pocket-build
 man1_MANS = pocket.1 pocket-init.1
 
 mylibexecdir = $(patsubst %/$(PACKAGE),%,$(libexecdir))
