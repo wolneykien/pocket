@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.20.1
+POCKET_VERSION = 0.2.22.1
 
 
 # Customization section
