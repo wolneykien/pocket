@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.22.1
+POCKET_VERSION = 0.2.23.1
 
 
 # Customization section
@@ -1041,7 +1041,7 @@ cleanpkg: $(BUILDROOT)/.configured
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$(CLEANDEP)" ]; then \
 	  echo '  echo $(INFOPFX) Deleting previously installed unused dependencies...' >>$(BUILDROOT)/.host/entry; \
- 	  echo '  apt-get -y autoremove ' >>$(BUILDROOT)/.host/entry; \
+ 	  echo '  apt-get --purge -y autoremove ' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
