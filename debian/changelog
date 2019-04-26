@@ -1,3 +1,11 @@
+pocket (0.2.24-1) experimental; urgency=low
+
+    * Fix: added depends for dpkg-dev there dpkg-architecture lives
+    * Fix: attempting to cleanup of not existing chroot
+    * Fix: wrong syntax in checkchroot target
+
+ -- Alexander Buev <san@zzz.spb.ru>  Fri, 26 Apr 2019 19:13:07 +0300
+
 pocket (0.2.23-1) experimental; urgency=low
 
     * cleanpkg CLEANDEP=1 now performs 'purge' rather than just 'remove' action

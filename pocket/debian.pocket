@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.23.1
+POCKET_VERSION = 0.2.24.1
 
 
 # Customization section
@@ -357,11 +357,12 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 ## * `clean`    Clean the buildroot making it necessary to
 ## `bootstrap` again.
 .ONESHELL:
-clean: 
-	@echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"
-	@if [ ! -d "$(BUILDROOT)"  ]; then exit 0; fi 
-	@if [ -n "$$(ls -A $(BUILDROOT))"  ]; then \
-	  echo 'echo $(INFOPFX) Creating devices and shell if needed...'; \
+clean:
+	# comment
+	@echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"; \
+	[ -d "$(BUILDROOT)"  ] || exit 0; \
+	if [ -n "$$(ls -A $(BUILDROOT))"  ]; then \
+	  echo '$(INFOPFX) Creating devices and shell if needed...'; \
 	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) $(BUILDROOT)/dev/.stamp; \
 	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) $(BUILDROOT)$(BUSYBOX); \
 	  if [ $$? -ne 0 ]; then exit 1; fi; \
@@ -389,14 +390,15 @@ clean:
 	  chmod 0755 $(BUILDROOT)/.cleanall; \
 	  $(RUN_A) $(abspath $(BUILDROOT)) /.cleanall; \
 	  if [ $$? -ne 0 ]; then exit 1; fi; \
-	fi
-	@echo '$(INFOPFX) Deleting whole chroot...'; 
-	@rm -rf '$(BUILDROOT)' 2> /dev/null || echo -n
-	@if [ -d '"$(BUILDROOT)"'  ]; then \
+	fi; \
+	echo '$(INFOPFX) Deleting whole chroot...'; \
+	rm -rf '$(BUILDROOT)' 2> /dev/null || echo -n; \
+	if [ -d '"$(BUILDROOT)"' ]; then \
 	  echo "$(INFOPFX) Cleanup failed - can not delete some files!!!"; \
 	  echo files: \"$$(ls -A $(BUILDROOT))\"; \
 	  exit 1; \
-	fi 
+	fi; \
+	exit 0
 
 ##
 ## * `clean-builder`    Clean the home directory of the user
@@ -989,29 +991,29 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 .ONESHELL:
 checkchroot:
 	# This comment need because of target marked as .ONESHELL 
-	@[ -d $(BUILDROOT) ] || exit 0
-	@echo "$(INFOPFX) Checking current chroot..."
-	@if [ -f "$(BUILDROOT)/etc/os-release" ] ; then
-	  CHROOT_DISTRO="$$(. $(BUILDROOT)/etc/os-release; echo $${VERSION} | sed 's/^.*( *\(.*\) *)/\1/' )"
-	else
-	  CHROOT_DISTRO="unknown" 
-	fi
-	@if [ "$${CHROOT_DISTRO}" != "$(DISTRO)" ] ; then 
-	  echo "$(INFOPFX) WARNING: Chroot distribution mismatch detected!!! Needed:$(DISTRO) Current:$${CHROOT_DISTRO}" 
-	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean 
-	  exit 0 
-	fi
-	@echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; 
-	@echo 'CHROOT_ARCH="$$(dpkg-architecture -qDEB_BUILD_ARCH)"' >>$(BUILDROOT)/.host/entry; 
-	@echo 'if [ "$${CHROOT_ARCH}" != "$(ARCH)" ] ; then ' >>$(BUILDROOT)/.host/entry; 
-	@echo '  echo $(INFOPFX) WARNING: Chroot arch mismatch detected!!! Needed:$(ARCH) Current:$${CHROOT_ARCH} ' >>$(BUILDROOT)/.host/entry; 
-	@echo '  exit 1 ' >>$(BUILDROOT)/.host/entry; 
-	@echo 'fi' >>$(BUILDROOT)/.host/entry; 
-	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; 
-	@if [ $$? -ne 0 ]; then 
-	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean 
-	fi 
-	exit 0  
+	@[ -d $(BUILDROOT) ] || exit 0; \
+	echo "$(INFOPFX) Checking current chroot..."; \
+	if [ -f "$(BUILDROOT)/etc/os-release" ] ; then \
+	  CHROOT_DISTRO="$$(. $(BUILDROOT)/etc/os-release; echo $${VERSION} | sed 's/^.*( *\(.*\) *)/\1/' )"; \
+	else \
+	  CHROOT_DISTRO="unknown"; \
+	fi; \
+	if [ "$${CHROOT_DISTRO}" != "$(DISTRO)" ] ; then \
+	  echo "$(INFOPFX) WARNING: Chroot distribution mismatch detected!!! Needed:$(DISTRO) Current:$${CHROOT_DISTRO}"; \
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean; \
+	  exit 0; \
+	fi; \
+	echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; \
+	echo 'CHROOT_ARCH="$$(dpkg-architecture -qDEB_BUILD_ARCH 2> /dev/null)"' >>$(BUILDROOT)/.host/entry; \
+	echo 'if [ "$${CHROOT_ARCH}" != "$(ARCH)" ] ; then ' >>$(BUILDROOT)/.host/entry; \
+	echo '  echo $(INFOPFX) WARNING: Chroot arch mismatch detected!!! Needed:$(ARCH) Current:$${CHROOT_ARCH} ' >>$(BUILDROOT)/.host/entry; \
+	echo '  exit 1 ' >>$(BUILDROOT)/.host/entry; \
+	echo 'fi' >>$(BUILDROOT)/.host/entry; \
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
+	if [ $$? -ne 0 -a -d "$(BUILDROOT)" ]; then \
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean ; \
+	fi; \
+	exit 0 
   
   
 ##
