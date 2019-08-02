@@ -1,8 +1,26 @@
 pocket (0.2.24-1) experimental; urgency=low
 
-    * Fix: added depends for dpkg-dev there dpkg-architecture lives
-    * Fix: attempting to cleanup of not existing chroot
-    * Fix: wrong syntax in checkchroot target
+    ! Fix: added depends for dpkg-dev there dpkg-architecture lives
+    ! Fix: attempting to cleanup of not existing chroot
+    ! Fix: wrong syntax in checkchroot target
+  	+ Improve: added ability to specify additional
+               packages neeeded for cross building in
+ 						   repository config file
+    ! Fix: on debian stretch and above crossbuild-essential 
+  	       has no depedency for libc6-dev (added this package to repo config)
+    + Improve: now all packages copyed to internal repo
+ 	             after successfull build process 
+               rather than before next update process.
+               This allow to manual install builded library packages
+               immediately after succesfull build.
+    + Added two debian control files 
+      1 control.jessie  (jessie & stretch)
+      2 control.buster  (buster)
+      please copy neededed file to debian/control before build 
+
+    Now pocket ready for build under buster and 
+                     for building for buster  
+    [san]                 
 
  -- Alexander Buev <san@zzz.spb.ru>  Fri, 26 Apr 2019 19:13:07 +0300
 

@@ -150,6 +150,7 @@ first:
 	$(eval SYSPKGLIST+=$(if $($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_INITIAL_PACKAGES)))
 	$(eval NOSYSPKGLIST+=$(if $($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_EXCLUDE_PACKAGES)))
 	$(eval BUILDPKGLIST+=$(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES)))
+	$(eval CROSSBUILDPKGLIST+=$(if $($(REPO)_$(DISTRO)_CROSS_PACKAGES),$($(REPO)_$(DISTRO)_CROSS_PACKAGES),$($(REPO)_CROSS_PACKAGES)))
 -include first
 
 # Output brief help page by default
@@ -467,12 +468,6 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	$(if $(DISTCOMPS),,$(error No distribution components are specified))
 	@echo "$(INFOPFX) Updating the package cache..."
-	rm -rf $(BUILDROOT)$(INREPODIR)
-	if [ -f $(BUILDREPO)/dists/$(OUTNAME)/Release ]; then \
-	   mkdir -p $(BUILDROOT)$(INREPODIR); \
-	   cp -a $(BUILDREPO)/* \
-		 $(BUILDROOT)$(INREPODIR)/ ; \
-	fi
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
@@ -1344,6 +1339,12 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	cp -a $(BUILDROOT)$(OUTREPODIR)/* \
 	      $(BUILDREPO)/
 	touch $(BUILDREPO)/dists/$(OUTNAME)/Release
+	rm -rf $(BUILDROOT)$(INREPODIR)
+	if [ -f $(BUILDREPO)/dists/$(OUTNAME)/Release ]; then \
+	   mkdir -p $(BUILDROOT)$(INREPODIR); \
+	   cp -a $(BUILDREPO)/* \
+		 $(BUILDROOT)$(INREPODIR)/ ; \
+	fi
 	touch $@
 
 ##
