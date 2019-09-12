@@ -1,3 +1,15 @@
+pocket (0.2.25-1) experimental; urgency=low
+
+  2019/09/12
+
+    * Fix: remove top level debian dir from source arhive
+    * Fix: remove all patches before compressing source archive
+           (I think that this fix already be done but 
+            in real life it was foggotten)
+    [san]
+
+ -- Alexander Buev <san@zzz.spb.ru>  Thu, 12 Sep 2019 14:05:24 +0300
+
 pocket (0.2.24-1) experimental; urgency=low
 
     ! Fix: added depends for dpkg-dev there dpkg-architecture lives
