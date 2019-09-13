@@ -1,12 +1,110 @@
-pocket (0.2.13-18) experimental; urgency=low
+pocket (0.2.25-1) experimental; urgency=low
 
-   * Fix:     on jessie mk-build-deps has no --host-arch option
-              used without this option 
-   * improve: added ability to disable package cache update before build.
-              now you can use update=yes/no variable for build & sync-in targets
-              to control this. as default update performed before build [san]
+  2019/09/12
 
- -- Alexander Buev <san@zzz.spb.ru>  Wed, 25 Oct 2017 11:49:38 +0300
+    * Fix: remove top level debian dir from source arhive
+    * Fix: remove all patches before compressing source archive
+           (I think that this fix already be done but 
+            in real life it was foggotten)
+    [san]
+
+ -- Alexander Buev <san@zzz.spb.ru>  Thu, 12 Sep 2019 14:05:24 +0300
+
+pocket (0.2.24-1) experimental; urgency=low
+
+    ! Fix: added depends for dpkg-dev there dpkg-architecture lives
+    ! Fix: attempting to cleanup of not existing chroot
+    ! Fix: wrong syntax in checkchroot target
+  	+ Improve: added ability to specify additional
+               packages neeeded for cross building in
+ 						   repository config file
+    ! Fix: on debian stretch and above crossbuild-essential 
+  	       has no depedency for libc6-dev (added this package to repo config)
+    + Improve: now all packages copyed to internal repo
+ 	             after successfull build process 
+               rather than before next update process.
+               This allow to manual install builded library packages
+               immediately after succesfull build.
+    + Added two debian control files 
+      1 control.jessie  (jessie & stretch)
+      2 control.buster  (buster)
+      please copy neededed file to debian/control before build 
+
+    Now pocket ready for build under buster and 
+                     for building for buster  
+    [san]                 
+
+ -- Alexander Buev <san@zzz.spb.ru>  Fri, 26 Apr 2019 19:13:07 +0300
+
+pocket (0.2.23-1) experimental; urgency=low
+
+    * cleanpkg CLEANDEP=1 now performs 'purge' rather than just 'remove' action
+
+ -- Sergey Kolemagin <s.kolemagin@metrotek.ru>  Thu, 01 Nov 2018 12:43:12 +0300
+
+pocket (0.2.22-1) experimental; urgency=low
+
+    * install-builddeps target use RUNENV_MNT too.
+
+ -- Sergey Kolemagin <s.kolemagin@metrotek.ru>  Mon, 09 Jul 2018 14:03:25 +0300
+
+pocket (0.2.21-1) experimental; urgency=low
+
+    * Fixed: .buildenv and .buildenv.$(TARGET) targets use RUNENV_MNT variable.
+      It is necessary because some packages need it (/proc, for example) [sk, vg]
+
+ -- Sergey Kolemagin <s.kolemagin@metrotek.ru>  Fri, 06 Jul 2018 19:31:06 +0300
+
+pocket (0.2.20-1) experimental; urgency=low
+
+    * Fixed: no checking chroot arch if chroot dir not exist
+    * Fixed: correctly processing EXTRA_PACKAGES & INITIAL_PACKAGES in repo
+      definition file
+    * Fixed: new chroot repo dir not created in new place (-p added to mkdir)
+    * Improve: added ability to owerwrite repository MIRROR for specific 
+               distribution in repo  definition file [san]
+
+ -- Alexander Buev <san@zzz.spb.ru>  Thu, 28 Jun 2018 12:57:26 +0300
+
+pocket (0.2.19-1) experimental; urgency=low
+
+    * Improve:  separate chroots for different distributions
+
+                now pocket maintenance separate:
+
+                  1) build roots
+                  2) repos
+                  3) install-roots
+
+                for differrent  distribution (such as jessie, stretch) in one
+                pocket directory 
+
+    * Improve:  added checking of current build root system
+                for native arch & distribution missmatch.
+                If missmatch with required for build parameters (arch & distribution)
+                detected then chroot cleared and initialized automaticaly
+
+  	* Improve:  added pocket-build script with option syntax similar	
+  	            to dpkg-buildpackage command but with exentions
+
+ -- Alexander Buev <san@zzz.spb.ru>  Mon, 04 Jun 2018 11:44:43 +0300
+
+pocket (0.2.18-1) experimental; urgency=low
+
+    * Improve: more correct sync of code (exclude ./debian instead of debian )  
+    * Fix: UPGRADE=yes worked only once -> now normaly
+    * Fix: package update not started in case of changes in repositories
+           records -> now package update started always at begin
+           of build. But you can disable update manualy passing UPDATE=no
+           variable to pocket
+    * Improve: checks debian version before using mk-build-deps --host-arch
+               option. Used only on stretch and above. 
+  	* Improve: automaticaly unapply all patches during orig.tar.xz creation
+               (quilt added to build system packages set)  
+    * Fix: corrected version numeration to 0.2.18-1 instead of 0.2.13-18
+           to pass Debian rules for package version sttring [san]
+
+ -- Alexander Buev <san@zzz.spb.ru>  Wed, 23 May 2018 11:19:18 +0300
 
 pocket (0.2.13-17) experimental; urgency=low
 

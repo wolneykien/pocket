@@ -13,3 +13,9 @@ debian_jessie_EXCLUDE_PACKAGES = systemd-sysv systemd upstart
 # Cross-building in Jessie
 debian_jessie_CROSS_MIRROR = http://emdebian.org/tools/debian
 debian_jessie_CROSS_COMPONENTS = main extra
+
+# Cross-building in Stretch 
+debian_stretch_CROSS_PACKAGES = libc6-dev:$(TARGET)
+
+# Cross-building in Buster 
+debian_buster_CROSS_PACKAGES = libc6-dev:$(TARGET)

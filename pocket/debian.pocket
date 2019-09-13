@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.13.18
+POCKET_VERSION = 0.2.25.1
 
 
 # Customization section
@@ -62,7 +62,7 @@ SYSPKGLIST = fakeroot $(BBOXPKG) rsync gawk
 NOSYSPKGLIST =
 
 # Build system packages:
-BUILDPKGLIST = build-essential devscripts equivs reprepro
+BUILDPKGLIST = build-essential devscripts equivs reprepro quilt
 
 # Test-root additional packages:
 TESTPKGLIST = man
@@ -79,15 +79,15 @@ INFOPFX=[pocket]
 # Output repository name and description
 OUTNAME = pocket
 OUTDESC = Built for $(REPO):$(DISTRO) with the help of Pocket and Hasher (http://github.com/wolneykien/pocket)
-BUILDREPO = $(if $(filter pocket,$(OUTNAME)),repo,$(OUTNAME)-repo)
+BUILDREPO = $(if $(filter pocket,$(OUTNAME)),"repo/$(DISTRO)","repo-$(OUTNAME)/$(DISTRO)")
 
 SOURCEDIR = SOURCE
 
 # Essential variables
 # -------------------
 
-BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))
-INSTALLROOT = installroot$(if $(ARCH),-$(ARCH))
+BUILDROOT = buildroot$(if $(ARCH),-$(ARCH))/$(DISTRO)
+INSTALLROOT = installroot$(if $(ARCH),-$(ARCH))/$(DISTRO)
 
 comma:= ,
 empty:=
@@ -104,9 +104,9 @@ ROOTER = rooter
 BUILDER = builder
 BUILDER_HOME = /usr/src
 INDIR = /.in
-INREPODIR = $(INDIR)/repo
+INREPODIR = $(INDIR)/repo/$(DISTRO)
 OUTDIR = /.out
-OUTREPODIR = $(OUTDIR)/repo
+OUTREPODIR = $(OUTDIR)/repo/$(DISTRO)
 
 FAKEROOT = /usr/bin/fakeroot-sysv $(if $(wildcard $(BUILDROOT)/.fakedata),-i /.fakedata) -s /.fakedata
 SHELL = /bin/bash
@@ -143,6 +143,15 @@ BUILDROOTTARDIRS = debootstrap var/cache/apt/archives var/lib/apt/lists
 BUSYBOX = /.host/bin/busybox
 APTARCHIVES = /var/cache/apt/archives
 
+# This target executed always and before any other 
+.PHONY: first
+first:
+	$(eval REPOMIRROR=$(if $($(REPO)_$(DISTRO)_MIRROR),$($(REPO)_$(DISTRO)_MIRROR),$($(REPO)_MIRROR)))
+	$(eval SYSPKGLIST+=$(if $($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_$(DISTRO)_INITIAL_PACKAGES),$($(REPO)_INITIAL_PACKAGES)))
+	$(eval NOSYSPKGLIST+=$(if $($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_$(DISTRO)_EXCLUDE_PACKAGES),$($(REPO)_EXCLUDE_PACKAGES)))
+	$(eval BUILDPKGLIST+=$(if $($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_$(DISTRO)_EXTRA_PACKAGES),$($(REPO)_EXTRA_PACKAGES)))
+	$(eval CROSSBUILDPKGLIST+=$(if $($(REPO)_$(DISTRO)_CROSS_PACKAGES),$($(REPO)_$(DISTRO)_CROSS_PACKAGES),$($(REPO)_CROSS_PACKAGES)))
+-include first
 
 # Output brief help page by default
 default: help
@@ -310,7 +319,7 @@ $(DEBPATHS): $(BUILDROOTTAR) $(BUILDROOT)/.stamp
 .ONESHELL:
 $(BUILDROOTTAR):
 	$(if $(REPO),,$(error No repositories are specified))
-	$(if $($(REPO)_MIRROR),,$(error Mirror of "$(REPO)" is unknown))
+	$(if $(REPOMIRROR),,$(error Mirror of "$(REPO)" is unknown))
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	@echo "$(INFOPFX) Downloading the base packages..."
 	rm -rf $(BUILDROOT)/.host
@@ -321,7 +330,7 @@ $(BUILDROOTTAR):
 	    $(if $(strip $(SYSPKGLIST)),--include=$(subst $(space),$(comma),$(strip $(SYSPKGLIST)))) \
 	    $(if $(strip $(NOSYSPKGLIST)),--exclude=$(subst $(space),$(comma),$(strip $(NOSYSPKGLIST)))) \
 	    $(if $(DISTCOMPS),--components=$(subst $(space),$(comma),$(DISTCOMPS))) \
-		$(DISTRO) $(BUILDROOT)/.host $($(REPO)_MIRROR)
+		$(DISTRO) $(BUILDROOT)/.host $(REPOMIRROR)
 	@if [ $$? -ne 0 ]; then exit 1; fi
 	tar cpf $@ -C $(BUILDROOT)/.host $(BUILDROOTTARDIRS)
 
@@ -349,11 +358,12 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 ## * `clean`    Clean the buildroot making it necessary to
 ## `bootstrap` again.
 .ONESHELL:
-clean: 
-	@echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"
-	@if [ ! -d "$(BUILDROOT)"  ]; then exit 0; fi 
-	@if [ -n "$$(ls -A $(BUILDROOT))"  ]; then \
-	  echo 'echo $(INFOPFX) Creating devices and shell if needed...'; \
+clean:
+	# comment
+	@echo "$(INFOPFX) Cleanup the chroot: $(abspath $(BUILDROOT))"; \
+	[ -d "$(BUILDROOT)"  ] || exit 0; \
+	if [ -n "$$(ls -A $(BUILDROOT))"  ]; then \
+	  echo '$(INFOPFX) Creating devices and shell if needed...'; \
 	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) $(BUILDROOT)/dev/.stamp; \
 	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) $(BUILDROOT)$(BUSYBOX); \
 	  if [ $$? -ne 0 ]; then exit 1; fi; \
@@ -381,14 +391,15 @@ clean:
 	  chmod 0755 $(BUILDROOT)/.cleanall; \
 	  $(RUN_A) $(abspath $(BUILDROOT)) /.cleanall; \
 	  if [ $$? -ne 0 ]; then exit 1; fi; \
-	fi
-	@echo '$(INFOPFX) Deleting whole chroot...'; 
-	@rm -rf '$(BUILDROOT)' 2> /dev/null || echo -n
-	@if [ -d '"$(BUILDROOT)"'  ]; then \
+	fi; \
+	echo '$(INFOPFX) Deleting whole chroot...'; \
+	rm -rf '$(BUILDROOT)' 2> /dev/null || echo -n; \
+	if [ -d '"$(BUILDROOT)"' ]; then \
 	  echo "$(INFOPFX) Cleanup failed - can not delete some files!!!"; \
 	  echo files: \"$$(ls -A $(BUILDROOT))\"; \
 	  exit 1; \
-	fi 
+	fi; \
+	exit 0
 
 ##
 ## * `clean-builder`    Clean the home directory of the user
@@ -454,23 +465,14 @@ clean-cache: rm-updated
 	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 
 $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)/dists/$(OUTNAME)/Release),$(BUILDREPO)/dists/$(OUTNAME)/Release)
-	@if [ "$(UPDATE)" = "no" ]; then \
-	  touch $@; exit 0;\
-	fi
 	$(if $(DISTRO),,$(error Distribution name is not specified))
 	$(if $(DISTCOMPS),,$(error No distribution components are specified))
 	@echo "$(INFOPFX) Updating the package cache..."
-	rm -rf $(BUILDROOT)$(INREPODIR)
-	if [ -f $(BUILDREPO)/dists/$(OUTNAME)/Release ]; then \
-	   mkdir $(BUILDROOT)$(INREPODIR); \
-	   cp -a $(BUILDREPO)/* \
-		 $(BUILDROOT)$(INREPODIR)/ ; \
-	fi
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'rm -rf /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -f /etc/apt/sources.list' >>$(BUILDROOT)/.host/entry
 	@echo 'mkdir /etc/apt/sources.list.d' >>$(BUILDROOT)/.host/entry
-	@echo 'echo "deb $($(REPO)_MIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(REPO)-$(DISTRO).list' >>$(BUILDROOT)/.host/entry
+	@echo 'echo "deb $(REPOMIRROR) $(DISTRO) $(DISTCOMPS)" >/etc/apt/sources.list.d/$(REPO)-$(DISTRO).list' >>$(BUILDROOT)/.host/entry
 	$(foreach ovl,$(sort $(foreach ovlrdc,$(OVERLAYS),$(firstword $(subst :,$(space),$(ovlrdc))))),$(foreach ovldist,$(if $(filter $(ovl):%,$(OVERLAYS)),$(sort $(foreach ovldc,$(patsubst $(ovl):%,%,$(filter $(ovl):%,$(OVERLAYS))),$(firstword $(subst /,$(space),$(ovldc))))),$($(subst -,_,$(ovl))_DISTRO)),echo 'echo "deb [trusted=yes] $($(subst -,_,$(ovl))_MIRROR) $(ovldist) $(if $(filter $(ovl):$(ovldist)/%,$(OVERLAYS)),$(patsubst $(ovl):$(ovldist)/%,%,$(filter $(ovl):$(ovldist)/%,$(OVERLAYS))),$(if $($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_$(subst -,_,$(ovldist))_COMPONENTS),$($(subst -,_,$(ovl))_COMPONENTS)))" >/etc/apt/sources.list.d/$(ovl)-$(ovldist).list' >>$(BUILDROOT)/.host/entry;))
 	@if [ -n "$(CROSS)" -a -n "$($(REPO)_$(DISTRO)_CROSS_MIRROR)" ]; then \
 	    echo '    echo "deb $($(REPO)_$(DISTRO)_CROSS_MIRROR) $(DISTRO) $($(REPO)_$(DISTRO)_CROSS_COMPONENTS)" >/etc/apt/sources.list.d/$(DISTRO)-cross.list' >>$(BUILDROOT)/.host/entry; \
@@ -488,11 +490,13 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
 	   echo "export no_proxy='$$no_proxy'" >>$(BUILDROOT)/.host/entry; \
 	 fi
-	@echo 'apt-get update' >>$(BUILDROOT)/.host/entry
+	@if [ "$(UPDATE)" != "no" ]; then \
+	  echo 'apt-get update' >>$(BUILDROOT)/.host/entry; \
+	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	@[ -z "$(CROSS)" ] || touch $(BUILDROOT)/.cross
-	touch $@
+	#touch $@
 
 $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	@if [ "$(UPDATE)" = "no" ]; then \
@@ -529,7 +533,7 @@ $(BUILDROOT)/.upgraded: $(BUILDROOT)/.updated$(if $(TARGET),.$(TARGET))
 	  chmod 0755 $(BUILDROOT)/.host/entry; \
 	  share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry; \
 	fi
-	touch $@
+	#touch $@
 
 $(BUILDROOT)/.cross:
 	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) update CROSS=yes ARCH=$(ARCH) TARGET=$(TARGET) BUILDROOT=$(BUILDROOT)
@@ -592,7 +596,9 @@ shell: $(BUILDROOT)/.configured
 ## information.
 install-buildenv: $(BUILDROOT)/.buildenv $(if $(TARGET),$(BUILDROOT)/.buildenv.$(TARGET))
 
+.ONESHELL:
 $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
+	# This string must not started with @ symbol die to .ONESHELL used 	
 	@echo "$(INFOPFX) Installing the build environment: $(strip $(BUILDPKGLIST))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
@@ -601,10 +607,13 @@ $(BUILDROOT)/.buildenv: $(BUILDROOT)/.updated
 	 fi
 	@echo 'apt-get install -y --no-install-recommends --allow-unauthenticated $(strip $(BUILDPKGLIST))' >>$(BUILDROOT)/.host/entry
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUNENV_MNT) $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	@if [ $$? -ne 0 ]; then exit 1; fi
 	touch $@
 
+.ONESHELL:
 $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$(TARGET)
+	# This string must not started with @ symbol die to .ONESHELL used 	
 	@echo "$(INFOPFX) Installing the build environment ($(TARGET)): $(strip $(CROSSBUILDPKGLIST))"
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@if [ -n "$$http_proxy" ]; then \
@@ -617,7 +626,8 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 	    echo 'fi' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
-	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	share_network=yes $(RUNENV_MNT) $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
+	@if [ $$? -ne 0 ]; then exit 1; fi
 	touch $@
 
 ##
@@ -641,7 +651,7 @@ $(BUILDROOT)/.buildenv.$(TARGET): $(BUILDROOT)/.buildenv $(BUILDROOT)/.updated.$
 ## `SKIPSYNC` configuration variable (or command-line argument) are
 ## not copied into the buildroot. By default the skip list is
 ## "`.git* .svn*`".
-sync-in: $(BUILDROOT)/.buildenv
+sync-in: | checkchroot $(BUILDROOT)/.buildenv
 	$(if $(filter sync-in,$(MAKECMDGOALS)),$(if $(FROM),,$(error Specify the package source directory to copy from with 'FROM=')))
 	rsync -aI --inplace --delete --delete-excluded $(if $(strip $(SKIPSYNC)),$(addprefix --exclude=,$(strip $(SKIPSYNC)))) $(abspath $(FROM))/ $(BUILDROOT)$(INDIR)/$(SOURCEDIR)
 	case "$(COMPOSE)" in \
@@ -668,9 +678,10 @@ sync-in: $(BUILDROOT)/.buildenv
 	@echo 'rsync -aI --inplace $$DELETE $(INDIR)/$(SOURCEDIR) ./' >>$(BUILDROOT)/.host/entry
 	@echo 'if [ -z "$$OVER" ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
+	@echo '    quilt pop -afR 2> /dev/null || echo -n ' >>$(BUILDROOT)/.host/entry
 	@echo '    if ! dpkg-source --print-format . | grep -q "native"; then' >>$(BUILDROOT)/.host/entry
 	@echo '        rm -fv ../*.orig.tar.gz' >>$(BUILDROOT)/.host/entry
-	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''/^Version:/ {s/^Version:[[:space:]]\+//; s/^[0-9]\+://; s/-[^-]*$$//; p}'\'').orig.tar.gz --exclude=debian/\* .' >>$(BUILDROOT)/.host/entry
+	@echo '        tar czf ../$$(dpkg-parsechangelog | sed -n -e '\''s/^Source:[[:space:]]\+//p'\'')_$$(dpkg-parsechangelog | sed -n -e '\''/^Version:/ {s/^Version:[[:space:]]\+//; s/^[0-9]\+://; s/-[^-]*$$//; p}'\'').orig.tar.gz --exclude=\./debian/\* --exclude=\./debian .' >>$(BUILDROOT)/.host/entry
 	@echo '    fi' >>$(BUILDROOT)/.host/entry
 	@echo '    cd ..' >>$(BUILDROOT)/.host/entry
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
@@ -931,7 +942,7 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 	   echo 'fi' >>$(BUILDROOT)/.host/entry; \
 	   ret=0; \
 	   chmod 0755 $(BUILDROOT)/.host/entry; \
-	   share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$?; \
+	   share_network=yes $(RUNENV_MNT) $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry || ret=$$?; \
 	   [ $$ret -eq 0 ] || exit $$ret; \
 	   echo "$(INFOPFX) Check the build requirements again..."; \
 	   echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; \
@@ -968,7 +979,39 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 	   echo '$(INFOPFX) Build requirements are met. Ready to build'; \
 	 fi
 
-
+##
+## * `checkchroot`    Check version & arch of prepared  in the
+#  chroot system and start full clean process in case of mismatch detected.
+## Version & and native arch of system must be idencial to required for build.
+##
+.ONESHELL:
+checkchroot:
+	# This comment need because of target marked as .ONESHELL 
+	@[ -d $(BUILDROOT) ] || exit 0; \
+	echo "$(INFOPFX) Checking current chroot..."; \
+	if [ -f "$(BUILDROOT)/etc/os-release" ] ; then \
+	  CHROOT_DISTRO="$$(. $(BUILDROOT)/etc/os-release; echo $${VERSION} | sed 's/^.*( *\(.*\) *)/\1/' )"; \
+	else \
+	  CHROOT_DISTRO="unknown"; \
+	fi; \
+	if [ "$${CHROOT_DISTRO}" != "$(DISTRO)" ] ; then \
+	  echo "$(INFOPFX) WARNING: Chroot distribution mismatch detected!!! Needed:$(DISTRO) Current:$${CHROOT_DISTRO}"; \
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean; \
+	  exit 0; \
+	fi; \
+	echo '#!/bin/sh $(if $(SHOPTS),-$(SHOPTS))' >$(BUILDROOT)/.host/entry; \
+	echo 'CHROOT_ARCH="$$(dpkg-architecture -qDEB_BUILD_ARCH 2> /dev/null)"' >>$(BUILDROOT)/.host/entry; \
+	echo 'if [ "$${CHROOT_ARCH}" != "$(ARCH)" ] ; then ' >>$(BUILDROOT)/.host/entry; \
+	echo '  echo $(INFOPFX) WARNING: Chroot arch mismatch detected!!! Needed:$(ARCH) Current:$${CHROOT_ARCH} ' >>$(BUILDROOT)/.host/entry; \
+	echo '  exit 1 ' >>$(BUILDROOT)/.host/entry; \
+	echo 'fi' >>$(BUILDROOT)/.host/entry; \
+	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry; \
+	if [ $$? -ne 0 -a -d "$(BUILDROOT)" ]; then \
+	  $(MAKE) -f $(firstword $(MAKEFILE_LIST)) clean ; \
+	fi; \
+	exit 0 
+  
+  
 ##
 ## * `cleanpkg`    Clean (delete) the files produced by the last
 ## package building procedure. The wildcard includes: `*.deb`,
@@ -996,7 +1039,7 @@ cleanpkg: $(BUILDROOT)/.configured
 	@echo 'fi' >>$(BUILDROOT)/.host/entry
 	@if [ -n "$(CLEANDEP)" ]; then \
 	  echo '  echo $(INFOPFX) Deleting previously installed unused dependencies...' >>$(BUILDROOT)/.host/entry; \
- 	  echo '  apt-get -y autoremove ' >>$(BUILDROOT)/.host/entry; \
+ 	  echo '  apt-get --purge -y autoremove ' >>$(BUILDROOT)/.host/entry; \
 	fi
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
@@ -1210,7 +1253,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '#!/bin/sh -e$(SHOPTS)' >$(BUILDROOT)/.host/entry
 	@echo 'cd $(BUILDER_HOME)' >>$(BUILDROOT)/.host/entry
 	@echo 'rm -rf $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
-	@echo 'mkdir $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
+	@echo 'mkdir -p $(OUTREPODIR)' >>$(BUILDROOT)/.host/entry
 	@if [ -e $(BUILDROOT)$(INREPODIR)/conf/distributions ]; then \
 	   echo 'cp -a $(INREPODIR)/* $(OUTREPODIR)/' >>$(BUILDROOT)/.host/entry; \
 	fi
@@ -1293,10 +1336,16 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	$(RUN_B) $(abspath $(BUILDROOT)) /.host/entry
 	rm -rf $(BUILDREPO)
-	mkdir $(BUILDREPO)
+	mkdir -p $(BUILDREPO)
 	cp -a $(BUILDROOT)$(OUTREPODIR)/* \
 	      $(BUILDREPO)/
 	touch $(BUILDREPO)/dists/$(OUTNAME)/Release
+	rm -rf $(BUILDROOT)$(INREPODIR)
+	if [ -f $(BUILDREPO)/dists/$(OUTNAME)/Release ]; then \
+	   mkdir -p $(BUILDROOT)$(INREPODIR); \
+	   cp -a $(BUILDREPO)/* \
+		 $(BUILDROOT)$(INREPODIR)/ ; \
+	fi
 	touch $@
 
 ##
@@ -1436,7 +1485,7 @@ show-config:
 	@echo 'Flavour: $(POCKET_FLAVOUR)'
 	@echo 'Version: $(POCKET_VERSION)'
 	@echo 'Distro: $(REPO):$(DISTRO)'
-	@echo 'Mirror: $($(REPO)_MIRROR)'
+	@echo 'Mirror: $(REPOMIRROR)'
 	@echo 'Components: $(DISTCOMPS)'
 	$(if $(OVERLAYS),@echo 'Overlays: $(OVERLAYS)')
 	@echo 'Architecture: $(if $(ARCH),$(ARCH),$(shell dpkg --print-architecture))'
