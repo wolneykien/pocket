@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.25.1
+POCKET_VERSION = 0.2.26.1
 
 
 # Customization section
@@ -93,7 +93,8 @@ comma:= ,
 empty:=
 space:= $(empty) $(empty)
 
-MAKEDEV = $(HSHPRIVDIR)/makedev.sh $(if $(NUM),-$(NUM))
+MAKEDEV = $(HSHPRIVDIR)/makedev.sh
+RUN_MAKEDEV = $(MAKEDEV) $(if $(NUM),-$(NUM))
 USER_A = $(addsuffix _a$(NUM), $(USER))
 USER_B = $(addsuffix _b$(NUM), $(USER))
 RUN_A = $(HSHPRIVDIR)/chrootuid1.sh $(if $(NUM),-$(NUM))
@@ -350,7 +351,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	chgrp $(USER_A) $(BUILDROOT)/dev
 	mkdir -p $(BUILDROOT)/dev/pts
 	chgrp $(USER_A) $(BUILDROOT)/dev/pts
-	$(MAKEDEV) $(abspath $(BUILDROOT))
+	[ -f $(MAKEDEV) ] && $(RUN_MAKEDEV) $(abspath $(BUILDROOT))
 	mkdir -m1777 $(BUILDROOT)/dev/shm
 	touch $@
 
@@ -894,6 +895,7 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 	@echo 'cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
 	@echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry
 	@echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry
+	@echo '[ -f debian/control.$(DISTRO) ] && cp -f debian/control.$(DISTRO) debian/control'  >>$(BUILDROOT)/.host/entry 
 	@echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry
 	$(call add_processing_deps_fields,debian/control,$(ARCH),$(TARGET),$(BUILDROOT)/.host/entry)
 	@echo 'BUILDOPTS=""' >>$(BUILDROOT)/.host/entry
