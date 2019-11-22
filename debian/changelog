@@ -1,3 +1,16 @@
+pocket (0.2.27-1) experimental; urgency=low
+
+   2019/11/22
+
+    * Fix: do not remove packages from internal repo
+      which has no Source field and which name 
+      not equal with name of source package
+    + Add: [trusted=yes] added for internal repo					 
+
+    [san] [gbochkarev]
+
+ -- Alexander Buev <san@zzz.spb.ru>  Fri, 22 Nov 2019 14:55:55 +0300
+
 pocket (0.2.26-1) experimental; urgency=low
 
   2019/10/09

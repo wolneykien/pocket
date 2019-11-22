@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.26.1
+POCKET_VERSION = 0.2.27.1
 
 
 # Customization section
@@ -484,8 +484,8 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	     echo "No components in $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)" >&2; \
 	     exit 1; \
 	   fi; \
-	   echo "echo \"deb copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
-	   echo "echo \"deb-src copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   echo "echo \"deb [trusted=yes] copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   echo "echo \"deb-src [trusted=yes] copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	fi
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -521,7 +521,7 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	[ ! -e $(BUILDROOT)/etc/apt/sources.list.d/.cross ] || touch $(BUILDROOT)/.cross
-	touch $@
+	#touch $@
 
 ##
 ## Upgrade system packages if UPGRADE variable == yes
@@ -1323,7 +1323,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "Remove $$srcname packages from architectures: $$delarchs"' >>$(BUILDROOT)/.host/entry
-	@echo '  if [ -n "$${archfilter}" ]; then  archfilter="( !Source $${archfilter} )"; fi' >>$(BUILDROOT)/.host/entry
+	@echo '  if [ -n "$${archfilter}" ]; then  archfilter="( ( !Source, !Package (==$${srcname})  ) $${archfilter} )"; fi' >>$(BUILDROOT)/.host/entry
 	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname),\$$Version (==$$srcver)$${archfilter:+, $$archfilter}"' >>$(BUILDROOT)/.host/entry
 	@echo '  if [ $$delsrc -ne 0 ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    echo "Add $$srcname $$srcver source package to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry
