@@ -21,7 +21,7 @@
 
 # Pocket flavour and version:
 POCKET_FLAVOUR = debian
-POCKET_VERSION = 0.2.25.1
+POCKET_VERSION = 0.2.27.1
 
 
 # Customization section
@@ -93,7 +93,8 @@ comma:= ,
 empty:=
 space:= $(empty) $(empty)
 
-MAKEDEV = $(HSHPRIVDIR)/makedev.sh $(if $(NUM),-$(NUM))
+MAKEDEV = $(HSHPRIVDIR)/makedev.sh
+RUN_MAKEDEV = $(MAKEDEV) $(if $(NUM),-$(NUM))
 USER_A = $(addsuffix _a$(NUM), $(USER))
 USER_B = $(addsuffix _b$(NUM), $(USER))
 RUN_A = $(HSHPRIVDIR)/chrootuid1.sh $(if $(NUM),-$(NUM))
@@ -350,7 +351,7 @@ $(BUILDROOT)/dev/.stamp: $(BUILDROOT)/.stamp
 	chgrp $(USER_A) $(BUILDROOT)/dev
 	mkdir -p $(BUILDROOT)/dev/pts
 	chgrp $(USER_A) $(BUILDROOT)/dev/pts
-	$(MAKEDEV) $(abspath $(BUILDROOT))
+	[ -f $(MAKEDEV) ] && $(RUN_MAKEDEV) $(abspath $(BUILDROOT))
 	mkdir -m1777 $(BUILDROOT)/dev/shm
 	touch $@
 
@@ -483,8 +484,8 @@ $(BUILDROOT)/.updated: $(BUILDROOT)/etc/resolv.conf $(if $(wildcard $(BUILDREPO)
 	     echo "No components in $(BUILDROOT)$(INREPODIR)/dists/$(OUTNAME)" >&2; \
 	     exit 1; \
 	   fi; \
-	   echo "echo \"deb copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
-	   echo "echo \"deb-src copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   echo "echo \"deb [trusted=yes] copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
+	   echo "echo \"deb-src [trusted=yes] copy://$(INREPODIR) $(OUTNAME) $$comps\" >>/etc/apt/sources.list" >>$(BUILDROOT)/.host/entry; \
 	fi
 	@if [ -n "$$http_proxy" ]; then \
 	   echo "export http_proxy='$$http_proxy'" >>$(BUILDROOT)/.host/entry; \
@@ -520,7 +521,7 @@ $(BUILDROOT)/.updated.$(TARGET): $(BUILDROOT)/.updated
 	@chmod 0755 $(BUILDROOT)/.host/entry
 	share_network=yes $(RUN_A) $(abspath $(BUILDROOT)) $(FAKEROOT) /.host/entry
 	[ ! -e $(BUILDROOT)/etc/apt/sources.list.d/.cross ] || touch $(BUILDROOT)/.cross
-	touch $@
+	#touch $@
 
 ##
 ## Upgrade system packages if UPGRADE variable == yes
@@ -894,6 +895,7 @@ install-builddeps: $(BUILDROOT)/.upgraded $(BUILDROOT)/.buildenv$(if $(TARGET),.
 	@echo 'cd $(SOURCEDIR)' >>$(BUILDROOT)/.host/entry
 	@echo 'trap "mv ../.control.orig debian/control" EXIT' >>$(BUILDROOT)/.host/entry
 	@echo 'trap ":" INT TERM QUIT' >>$(BUILDROOT)/.host/entry
+	@echo '[ -f debian/control.$(DISTRO) ] && cp -f debian/control.$(DISTRO) debian/control'  >>$(BUILDROOT)/.host/entry 
 	@echo 'cp -a debian/control ../.control.orig' >>$(BUILDROOT)/.host/entry
 	$(call add_processing_deps_fields,debian/control,$(ARCH),$(TARGET),$(BUILDROOT)/.host/entry)
 	@echo 'BUILDOPTS=""' >>$(BUILDROOT)/.host/entry
@@ -1321,7 +1323,7 @@ $(BUILDROOT)/.repodone: $(BUILDROOT)/.buildok
 	@echo '  done' >>$(BUILDROOT)/.host/entry
 	@echo '' >>$(BUILDROOT)/.host/entry
 	@echo '  echo "Remove $$srcname packages from architectures: $$delarchs"' >>$(BUILDROOT)/.host/entry
-	@echo '  if [ -n "$${archfilter}" ]; then  archfilter="( !Source $${archfilter} )"; fi' >>$(BUILDROOT)/.host/entry
+	@echo '  if [ -n "$${archfilter}" ]; then  archfilter="( ( !Source, !Package (==$${srcname})  ) $${archfilter} )"; fi' >>$(BUILDROOT)/.host/entry
 	@echo '  reprepro -b $(OUTREPODIR) removefilter $(OUTNAME) "\$$Source (==$$srcname),\$$Version (==$$srcver)$${archfilter:+, $$archfilter}"' >>$(BUILDROOT)/.host/entry
 	@echo '  if [ $$delsrc -ne 0 ]; then' >>$(BUILDROOT)/.host/entry
 	@echo '    echo "Add $$srcname $$srcver source package to \"$(OUTNAME)\" repo..."' >>$(BUILDROOT)/.host/entry

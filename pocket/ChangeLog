@@ -1,3 +1,31 @@
+2019/11/22  Alexander Buev <san@zzz.spb.ru> 
+
+  * debian.pocket (0.2.27.1)
+
+    * Fix: do not remove packages from internal repo
+		       which has no Source field and which name 
+					 not equal with name of source package
+    + Add: [trusted=yes] added for internal repo					 
+					 
+
+2019/10/09  Alexander Buev <san@zzz.spb.ru>
+
+  * debian.pocket (0.2.26.1)
+
+    * Fix:  do not call hasher makedev script
+            if it not found (new hasher-priv has no this script)
+    + Added:  Now pocket can handle control.${DISTRONAME} files
+              in debian directory. 
+              For example: in case of build for jessie pocket
+              attempt to use control.jessie first. 
+              If this file not found pocket use original control file.
+              (This pocket specific feature not found in 
+               other debian build systems)
+    + Added: --no-upd option to pocket-build script
+             to switch off apt update operation before build
+    * Fix:  added ruby-ronn dependency for arhlinux package
+					 
+
 2019/09/12  Alexander Buev <san@zzz.spb.ru> 
 
   * debian.pocket (0.2.25.1)
