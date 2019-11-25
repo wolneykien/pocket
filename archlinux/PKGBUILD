@@ -8,9 +8,8 @@ arch=('i686' 'x86_64')
 license=('GPL3')
 url="http://"
 groups=('base')
-depends=('hasher-priv' 'debootstrap' 'debian-archive-keyring' 'dpkg')
-makedepends=('help2man' 'ruby-ronn')
-builddepends=('autoconf' 'automake')
+depends=('hasher-priv' 'debootstrap' 'debian-archive-keyring' 'dpkg' 'rsync' )
+makedepends=('help2man' 'ruby-ronn' 'autoconf' 'automake')
 source=(git+https://github.com/wolneykien/pocket.git)
 md5sums=('SKIP')
 
