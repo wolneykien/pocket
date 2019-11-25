@@ -22,6 +22,7 @@ DEFVENDOR="debian"
 DISTRO="${DEFVENDOR}:jessie"	
 MNTPOINTS=""
 UPGRADE=""
+UPDATE=""
 
 PROG="pocket-build"
 
@@ -44,6 +45,7 @@ Available options:
   -c,                                   Clear only all previously installed build depends before build
   --crepo,                              Additionaly clear internal repo before build
   --upg,                                Upgrade packages before build
+  --no-upd,                             Do not update packages information before build
   -d <distribution>                     Set debian distribution name to build for (default:${DISTRO})
   -A, --all                             Build only arch independed  packages (arch==all)
   -B, --any                             Build only arch depended packages (arch==any)
@@ -87,7 +89,7 @@ parse_opts()
   INPUT_OPTIONS="$@"
 
   SHORTOPTS="hvd:r:cCj:P:i:o:ABbSm:Gg"
-  LONGOPTS="help,verbose,dry-run,repos,clean,indir,outdir,crepo,all,any,bin,src,mount,allsrc,anysrc,upg"
+  LONGOPTS="help,verbose,dry-run,repos,clean,indir,outdir,crepo,all,any,bin,src,mount,allsrc,anysrc,upg,no-upd"
 
   # options may be followed by one colon to indicate they have a required argument
   options=`getopt -n ${PROG} -o $SHORTOPTS --long $LONGOPTS -n $0 -- $INPUT_OPTIONS`
@@ -112,6 +114,7 @@ parse_opts()
       -g|--allsrc) PKGTYPE="allsrc" ;;
       -G|--anysrc) PKGTYPE="anysrc" ;;
       --upg)       UPGRADE="yes" ;;
+      --no-upd)    UPDATE="no" ;;
       -r|--repos)   shift; REPOS="${1}";;
       -m|--mount)   shift; MNTPOINTS="${1}";;
       -j)           shift; CPUCNT="${1}" ;;
@@ -197,13 +200,18 @@ build()
   local OUTDIR="${4}"
 
   local BUILDOPTS="PKGTYPE=${PKGTYPE}"
+  local SYNCOPTS=""
 
   if [ -n "${UPGRADE}" ]; then
     BUILDOPTS="${BUILDOPTS} UPGRADE=${UPGRADE}"
   fi 
+  if [ -n "${UPDATE}" ]; then
+    SYNCOPTS="${SYNCOPTS} UPDATE=${UPDATE}"
+    BUILDOPTS="${BUILDOPTS} UPDATE=${UPDATE}"
+  fi 
 
   set -e
-  execute_cmd "pocket ${POCKETOPTS} sync-in ${INDIR}"
+  execute_cmd "pocket ${POCKETOPTS} sync-in ${INDIR} ${SYNCOPTS}"
   execute_cmd "pocket ${POCKETOPTS} -N -t ${ARCH} build ${BUILDOPTS}"
 
   if [ -n "${OUTDIR}" ]; then
@@ -252,6 +260,7 @@ fi
 
 # Get current system native arch
 INIT_ARCH="$(dpkg-architecture -q DEB_BUILD_ARCH)"
+#INIT_ARCH="armhf"
 
 # This is an exception - we can create chroot with i386 binaries on x86_64 machine 
 # die to ability to execute i386 code on x86_64 

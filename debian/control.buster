@@ -6,7 +6,7 @@ Build-Depends:
                debhelper (>= 8.0.0), 
                dh-autoreconf, 
                help2man, 
-               ruby-ronn, 
+               ronn, 
                pkg-config
 Standards-Version: 3.9.2
 Homepage: http://metrotek.spb.ru/

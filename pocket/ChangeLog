@@ -1,3 +1,68 @@
+2019/11/22  Alexander Buev <san@zzz.spb.ru> 
+
+  * debian.pocket (0.2.27.1)
+
+    * Fix: do not remove packages from internal repo
+		       which has no Source field and which name 
+					 not equal with name of source package
+    + Add: [trusted=yes] added for internal repo					 
+					 
+
+2019/10/09  Alexander Buev <san@zzz.spb.ru>
+
+  * debian.pocket (0.2.26.1)
+
+    * Fix:  do not call hasher makedev script
+            if it not found (new hasher-priv has no this script)
+    + Added:  Now pocket can handle control.${DISTRONAME} files
+              in debian directory. 
+              For example: in case of build for jessie pocket
+              attempt to use control.jessie first. 
+              If this file not found pocket use original control file.
+              (This pocket specific feature not found in 
+               other debian build systems)
+    + Added: --no-upd option to pocket-build script
+             to switch off apt update operation before build
+    * Fix:  added ruby-ronn dependency for arhlinux package
+					 
+
+2019/09/12  Alexander Buev <san@zzz.spb.ru> 
+
+  * debian.pocket (0.2.25.1)
+
+	  * Fix: remove top level debian dir from source arhive
+		* Fix: remove all patches before compressing source archive
+		       (I think that this fix already be done but 
+					  in real life it was foggotten)
+		[san]
+
+
+2019/04/26 Alexander Buev <san@zzz.spb.ru> 
+
+	* debian.pocket (0.2.24.1)
+
+	  * Fix: added depends for dpkg-dev there dpkg-architecture lives
+		* Fix: attempting to cleanup of not existing chroot
+	  * Fix: wrong syntax in checkchroot target
+		+ Improve: added ability to specify additional
+		           packages neeeded for cross building in
+							 repository config file
+	  * Fix: on debian stretch and above crossbuild-essential 
+		       has no depedency for libc6-dev (added this package to repo config)
+		* Improve: now all packages copyed to internal repo
+		           after successfull build process 
+							 rather than before next update process.
+							 This allow to manual install builded library packages
+							 immediately after succesfull build.
+	  + Added two debian control files 
+			1 control.jessie  (jessie & stretch)
+			2 control.buster  (buster)
+			please copy neededed file to debian/control before build 
+
+		Now pocket ready for build under buster and 
+	                   for building for buster  
+		[san]                 
+
 2018/06/28 Alexander Buev <san@zzz.spb.ru>
 
 	* debian.pocket (0.2.20.1)
